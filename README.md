@@ -45,7 +45,12 @@ Antigravity Context Monitor 依托 Antigravity 原生 UI Sidecar 架构构建，
 - Python 3.8+（支持 Windows 官方 `py` 启动器）
 - Google Antigravity 2.0+
 
-### 一键安装
+### 方式 1：直接让 Agent 自动安装（推荐 · 免切终端）
+直接复制以下一句话发送给当前对话中的 Agent 即可全自动安装完成：
+
+> 帮我安装当前上下文监控插件：https://github.com/Summer-kk/antigravity-context-monitor.git
+
+### 方式 2：手动终端安装（PowerShell）
 在 PowerShell 中执行以下命令，将插件克隆至 Antigravity 用户插件目录：
 
 ```powershell
@@ -58,11 +63,14 @@ git clone https://github.com/Summer-kk/antigravity-context-monitor.git "$HOME\.g
 
 ## 使用方式
 
-1. **通过原生侧边栏链接打开**：
+1. **界面直接打开**：
+   打开侧边栏 -> 扩展 -> 当前上下文监控 即可直接唤起监控面板。
+
+2. **协议链接直达**：
    在任意对话中直接点击下方协议链接，即可在辅助窗格中唤起监控面板：
    `sidecar://context-monitor/context-hud/`
 
-2. **通过 Agent 自然语言交互**：
+3. **通过 Agent 自然语言交互**：
    在对话中向 Agent 发送如下指令，Agent 将自动提供侧边栏入口：
    - “查看当前上下文占用”
    - “检查当前会话 Token 健康度”
