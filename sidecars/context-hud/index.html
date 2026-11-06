@@ -189,18 +189,18 @@
             <span id="projectCountBadge" class="text-[10px] text-gray-500 font-mono">(按项目分类)</span>
           </div>
           <!-- 左右滑动的可视化切换按钮 (Sliding Segmented Toggle) -->
-          <div id="followLockSwitch" class="relative flex items-center bg-gray-950 p-0.5 rounded-lg border border-gray-700/80 cursor-pointer select-none shadow-inner" title="点击或滑动切换：⚡ 自动跟随最新活跃会话 或 📌 锁定当前会话">
+          <div id="followLockSwitch" class="relative grid grid-cols-2 bg-gray-950 p-0.5 rounded-lg border border-gray-700/80 cursor-pointer select-none shadow-inner w-36" title="点击或滑动切换：⚡ 自动跟随最新活跃会话 或 📌 锁定当前会话">
             <!-- 左右滑动的色块指示药丸 (Sliding Indicator) -->
             <div id="switchThumb" class="absolute top-0.5 bottom-0.5 left-0.5 w-[calc(50%-2px)] rounded-md transition-all duration-200 ease-out shadow-sm pointer-events-none"></div>
 
             <!-- 左选项：自动跟随 -->
-            <button type="button" id="switchOptAuto" class="relative z-10 px-2 py-0.5 text-[10px] font-medium transition-colors flex items-center gap-1 focus:outline-none">
+            <button type="button" id="switchOptAuto" class="relative z-10 w-full py-0.5 text-[10px] font-medium transition-colors flex items-center justify-center gap-1 focus:outline-none">
               <span>⚡</span>
               <span>自动跟随</span>
             </button>
 
             <!-- 右选项：已锁定 -->
-            <button type="button" id="switchOptLock" class="relative z-10 px-2 py-0.5 text-[10px] font-medium transition-colors flex items-center gap-1 focus:outline-none">
+            <button type="button" id="switchOptLock" class="relative z-10 w-full py-0.5 text-[10px] font-medium transition-colors flex items-center justify-center gap-1 focus:outline-none">
               <span>📌</span>
               <span>已锁定</span>
             </button>
@@ -313,18 +313,18 @@
       if (!thumb || !optAuto || !optLock) return;
 
       if (selectedCid) {
-        // 状态：已锁定 -> 滑块平滑右移 (琥珀金/天蓝微光)
+        // 状态：已锁定 -> 滑块平滑右移到右半部
         thumb.style.transform = 'translateX(100%)';
         thumb.className = "absolute top-0.5 bottom-0.5 left-0.5 w-[calc(50%-2px)] rounded-md transition-transform duration-200 ease-out bg-sky-500/20 border border-sky-400/50 shadow-[0_0_8px_rgba(56,189,248,0.25)] pointer-events-none";
-        optAuto.className = "relative z-10 px-2 py-0.5 text-[10px] font-normal transition-colors flex items-center gap-1 text-gray-500 hover:text-gray-300 focus:outline-none";
-        optLock.className = "relative z-10 px-2 py-0.5 text-[10px] font-semibold transition-colors flex items-center gap-1 text-sky-200 focus:outline-none";
+        optAuto.className = "relative z-10 w-full py-0.5 text-[10px] font-normal transition-colors flex items-center justify-center gap-1 text-gray-500 hover:text-gray-300 focus:outline-none";
+        optLock.className = "relative z-10 w-full py-0.5 text-[10px] font-semibold transition-colors flex items-center justify-center gap-1 text-sky-200 focus:outline-none";
         if (headerIcon) headerIcon.innerText = "📌";
       } else {
         // 状态：自动跟随 -> 滑块平滑归左
         thumb.style.transform = 'translateX(0%)';
         thumb.className = "absolute top-0.5 bottom-0.5 left-0.5 w-[calc(50%-2px)] rounded-md transition-transform duration-200 ease-out bg-emerald-500/15 border border-emerald-400/40 shadow-[0_0_8px_rgba(52,211,153,0.2)] pointer-events-none";
-        optAuto.className = "relative z-10 px-2 py-0.5 text-[10px] font-semibold transition-colors flex items-center gap-1 text-emerald-300 focus:outline-none";
-        optLock.className = "relative z-10 px-2 py-0.5 text-[10px] font-normal transition-colors flex items-center gap-1 text-gray-500 hover:text-gray-300 focus:outline-none";
+        optAuto.className = "relative z-10 w-full py-0.5 text-[10px] font-semibold transition-colors flex items-center justify-center gap-1 text-emerald-300 focus:outline-none";
+        optLock.className = "relative z-10 w-full py-0.5 text-[10px] font-normal transition-colors flex items-center justify-center gap-1 text-gray-500 hover:text-gray-300 focus:outline-none";
         if (headerIcon) headerIcon.innerText = "⚡";
       }
     }
