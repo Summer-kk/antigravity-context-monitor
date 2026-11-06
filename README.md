@@ -38,6 +38,20 @@ Antigravity Context Monitor 依托 Antigravity 原生 UI Sidecar 架构构建，
 
 ---
 
+## 数据与文件说明
+
+本插件完全在本地运行，不发起任何外部网络请求。相关读写情况如下：
+
+### 1. 读取文件（只读访问）
+- **会话元数据**：读取 `~/.gemini/antigravity/conversation_summaries.db`（通过 SQLite 只读模式连接 `mode=ro`，提取会话标题、关联项目与时间戳）。
+- **步骤轨迹日志**：读取目标会话目录下的 `brain/<cid>/.system_generated/logs/transcript.jsonl`（提取每一步的上下文尺寸、缓存命中量、工具调用及压缩瘦身标记）。
+- *注：所有读取操作均为只读模式，不修改任何主程序数据。*
+
+### 2. 生成文件
+- **零磁盘持久化**：本插件采用纯内存计算与实时推送，不向用户磁盘写入任何持久化缓存或日志文件。
+
+---
+
 ## 安装指引 (Windows)
 
 ### 环境要求
