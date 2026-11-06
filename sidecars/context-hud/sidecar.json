@@ -1,0 +1,17 @@
+{
+  "has_web_ui": true,
+  "display_name": "当前上下文监控",
+  "description": "实时展示当前对话上下文占用率、Token 走势与健康度",
+  "command": "py",
+  "args": ["server.py"],
+  "restart_policy": "always",
+  "ui_config": {
+    "views": [
+      {
+        "entrypoint": "SIDECAR_UI_ENTRYPOINT_AUX_PANE",
+        "path": "/",
+        "title": "上下文监控"
+      }
+    ]
+  }
+}

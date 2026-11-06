@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>当前对话上下文监控 - Antigravity HUD</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    :root {
+      --bg-main: var(--background, #090d16);
+      --bg-card: var(--card, #111827);
+      --border-color: var(--border, #1f2937);
+      --text-main: var(--foreground, #f9fafb);
+      --text-muted: var(--muted-foreground, #9ca3af);
+    }
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background-color: #374151;
+      border-radius: 4px;
+    }
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.15); opacity: 0.4; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    .pulse-ring {
+      animation: pulse-ring 2s infinite ease-in-out;
+    }
+    .chart-dot {
+      transition: all 0.2s ease;
+    }
+    .chart-dot:hover {
+      r: 6;
+      stroke-width: 3;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body class="h-screen w-screen overflow-hidden bg-[--bg-main] text-[--text-main] p-2 md:p-3 text-xs md:text-sm custom-scrollbar flex flex-col select-none">
+  <div class="flex-1 min-h-0 flex flex-col space-y-2 max-w-4xl mx-auto w-full overflow-hidden">
+
+    <!-- 顶部状态栏与模式切换 -->
+    <header class="flex items-center justify-between gap-2 pb-1.5 border-b border-gray-800 shrink-0">
+      <div class="flex items-center space-x-2 min-w-0">
+        <div class="w-7 h-7 shrink-0 rounded-lg bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400 font-bold shadow-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <div class="min-w-0">
+          <div class="flex items-center space-x-1.5">
+            <h1 class="text-xs md:text-sm font-bold text-gray-100 tracking-tight whitespace-nowrap">当前上下文</h1>
+            <span id="liveStatusBadge" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 whitespace-nowrap">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-ring"></span>
+              实时
+            </span>
+          </div>
+          <!-- 顶部简报：当前选定会话名称与状态 -->
+          <div class="flex items-center gap-1.5 text-[11px] text-gray-400 truncate mt-0.5">
+            <span id="headerLockIcon" class="text-[10px] text-sky-400 font-mono">⚡</span>
+            <span id="headerConvBrief" class="text-gray-300 font-medium truncate max-w-[200px] sm:max-w-xs">正在检测活跃会话...</span>
+          </div>
+          <span id="convSubTitle" class="hidden"></span>
+        </div>
+      </div>
+
+      <!-- 右侧控制区：视图切换 + 重启 + 轮询开关 + 刷新 -->
+      <div class="flex items-center space-x-1.5 shrink-0">
+        <!-- 重启服务按钮 -->
+        <button id="restartBtn" title="重启服务进程并强制刷新到最新版本" class="flex items-center space-x-1 px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded text-[11px] font-medium transition-all active:scale-95">
+          <svg id="restartIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          <span id="restartBtnText" class="hidden sm:inline">重启服务</span>
+        </button>
+
+        <!-- 紧凑 / 完整 切换按钮 -->
+        <button id="viewToggleBtn" class="flex items-center space-x-1 px-2 py-1 bg-gray-800/90 hover:bg-gray-700 text-gray-300 rounded text-[11px] border border-gray-700 transition-colors" title="切换极简/全景视图">
+          <span id="viewToggleIcon">📱</span>
+          <span id="viewToggleText" class="hidden sm:inline">极简模式</span>
+        </button>
+
+        <label class="flex items-center space-x-1 cursor-pointer bg-gray-800/80 hover:bg-gray-800 px-1.5 py-1 rounded border border-gray-700/60 text-[11px] transition-colors" title="2秒自动轮询最新会话状态">
+          <input type="checkbox" id="autoRefreshToggle" checked class="rounded border-gray-600 text-sky-500 focus:ring-0 w-3 h-3 bg-gray-900 cursor-pointer">
+          <span class="text-gray-300 hidden md:inline">自动</span>
+        </label>
+
+        <button id="manualRefreshBtn" title="立即刷新" class="p-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded text-gray-300 hover:text-white transition-all active:scale-95">
+          <svg id="refreshIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- 🌟 核心卡片 1：直觉化 Hero 仪表盘 (256k 窗口基准) -->
+    <div class="bg-gray-900/90 border border-gray-800 rounded-xl p-2.5 shadow-xl relative overflow-hidden shrink-0">
+      <!-- 顶部摘要行：大号百分比 + 核心用量与缓存率 -->
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex items-baseline space-x-2">
+          <span id="heroOccupancyVal" class="text-3xl md:text-4xl font-extrabold tracking-tight text-white">0.0%</span>
+        </div>
+        <div class="text-right space-y-0.5">
+          <div class="text-xs font-mono text-gray-200" id="heroTokensSummary">0 / 256k Tokens</div>
+          <div id="cacheHitSummary" class="text-[11px] font-mono text-teal-400">缓存率: 0.0%</div>
+        </div>
+      </div>
+
+      <!-- 🌈 三段式横向堆叠条 (Stacked Composition Bar) -->
+      <div class="mt-2">
+        <div class="w-full bg-gray-800 rounded-full h-2.5 overflow-hidden flex p-0.5 border border-gray-700/70 shadow-inner">
+          <!-- 1. 系统/工具基线 (蓝色) -->
+          <div id="barBaseline" class="h-full bg-indigo-500 transition-all duration-500 rounded-l-full" style="width: 0%" title="系统基线"></div>
+          <!-- 2. 交互增量 (紫色/青色) -->
+          <div id="barGrowth" class="h-full bg-gradient-to-r from-sky-400 to-teal-400 transition-all duration-500" style="width: 0%" title="对话累加"></div>
+          <!-- 3. 剩余空间 (深灰) -->
+          <div id="barFree" class="h-full bg-gray-800/80 transition-all duration-500 rounded-r-full" style="width: 100%" title="剩余可用"></div>
+        </div>
+
+        <!-- 堆叠图图例说明 -->
+        <div class="flex justify-between items-center text-[10px] text-gray-400 mt-1 px-0.5">
+          <div class="flex items-center gap-1">
+            <span class="w-2 h-2 rounded-sm bg-indigo-500"></span>
+            <span>基线: <b id="legendBaselineVal" class="text-gray-300 font-normal">0</b></span>
+          </div>
+          <div class="flex items-center gap-1">
+            <span class="w-2 h-2 rounded-sm bg-sky-400"></span>
+            <span>对话: <b id="legendGrowthVal" class="text-gray-300 font-normal">0</b></span>
+          </div>
+          <div class="flex items-center gap-1">
+            <span class="w-2 h-2 rounded-sm bg-gray-600"></span>
+            <span>剩余: <b id="legendFreeVal" class="text-gray-300 font-normal">100%</b></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 📊 详细区域 (在极简模式下隐藏，flex-1 弹性填充并限制滚动) -->
+    <div id="detailedSection" class="flex-1 min-h-0 flex flex-col space-y-2 transition-all duration-300 overflow-hidden">
+
+      <!-- 核心卡片 2：上下文走势图 (拉高振幅空间 + 平滑单线 + 压缩事件标注) -->
+      <div class="bg-gray-900/90 border border-gray-800 rounded-xl p-2.5 shadow-md space-y-1.5 shrink-0">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-1.5">
+            <span class="text-xs font-semibold text-gray-200">上下文走势</span>
+            <span id="chartRangeLabel" class="text-[10px] text-gray-500">(全量步骤)</span>
+          </div>
+          <div class="flex items-center space-x-2.5 text-[10px] text-gray-400">
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-sky-400"></span> 上下文总量</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-purple-400"></span> 压缩事件</span>
+          </div>
+        </div>
+
+        <!-- 走势图增高展示，内部空间充裕且舒展 -->
+        <div id="chartContainer" class="relative w-full h-52 md:h-60 bg-gray-950/70 rounded-lg border border-gray-800/80 p-2 overflow-hidden flex items-center justify-center">
+          <svg id="trendSvg" class="w-full h-full block"></svg>
+          <div id="chartTooltip" class="absolute hidden px-2.5 py-1.5 bg-gray-900/95 text-gray-200 text-[10px] rounded-lg border border-gray-700 shadow-2xl pointer-events-none transition-opacity z-20 backdrop-blur-sm"></div>
+          <div id="emptyChartText" class="text-gray-500 text-xs hidden">暂无多轮交互步骤数据</div>
+        </div>
+
+        <div class="flex justify-between items-center text-[10px] text-gray-500 font-mono px-1">
+          <span id="chartLabelStart">Step 1</span>
+          <span id="chartLabelMid">持续演进</span>
+          <span id="chartLabelEnd">当前最新</span>
+        </div>
+      </div>
+
+      <!-- 核心卡片 3：极简运行元数据单行 -->
+      <div class="bg-gray-900/60 border border-gray-800 rounded-lg px-3 py-1 text-[11px] text-gray-400 font-mono flex flex-wrap items-center justify-between gap-2 shrink-0">
+        <span>模型: <b id="metaModelName" class="text-gray-200 font-normal">Gemini 3.8</b></span>
+        <span>轮次: <b id="metaStepsCount" class="text-purple-400 font-normal">0 步</b></span>
+        <span>本轮输出: <b id="metaLatestOutput" class="text-indigo-400 font-normal">0</b></span>
+        <span>单步新增: <b id="metaUncachedPart" class="text-sky-400 font-normal">+0</b></span>
+      </div>
+
+      <!-- 核心卡片 4：会话列表选择框 (采用卡片内列表模式 · 放置在走势图下方 · 按项目分类与排序) -->
+      <div class="bg-gray-900/90 border border-gray-800 rounded-xl p-2.5 shadow-md flex-1 min-h-0 flex flex-col space-y-1.5 overflow-hidden">
+        <div class="flex items-center justify-between shrink-0">
+          <div class="flex items-center space-x-1.5">
+            <span class="text-xs font-semibold text-gray-200">会话选择</span>
+            <span id="projectCountBadge" class="text-[10px] text-gray-500 font-mono">(按项目分类)</span>
+          </div>
+          <!-- 左右滑动的可视化切换按钮 (Sliding Segmented Toggle) -->
+          <div id="followLockSwitch" class="relative flex items-center bg-gray-950 p-0.5 rounded-lg border border-gray-700/80 cursor-pointer select-none shadow-inner" title="点击或滑动切换：⚡ 自动跟随最新活跃会话 或 📌 锁定当前会话">
+            <!-- 左右滑动的色块指示药丸 (Sliding Indicator) -->
+            <div id="switchThumb" class="absolute top-0.5 bottom-0.5 left-0.5 w-[calc(50%-2px)] rounded-md transition-all duration-200 ease-out shadow-sm pointer-events-none"></div>
+
+            <!-- 左选项：自动跟随 -->
+            <button type="button" id="switchOptAuto" class="relative z-10 px-2 py-0.5 text-[10px] font-medium transition-colors flex items-center gap-1 focus:outline-none">
+              <span>⚡</span>
+              <span>自动跟随</span>
+            </button>
+
+            <!-- 右选项：已锁定 -->
+            <button type="button" id="switchOptLock" class="relative z-10 px-2 py-0.5 text-[10px] font-medium transition-colors flex items-center gap-1 focus:outline-none">
+              <span>📌</span>
+              <span>已锁定</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 项目快捷筛选 Tab Chips (水平平滑滚动) -->
+        <div id="projectFilterTabs" class="flex items-center gap-1 overflow-x-auto custom-scrollbar shrink-0 pb-1 text-[10px]"></div>
+
+        <!-- 内部可滚动会话列表 (仅局部滚动，外部页面严格无滑动条) -->
+        <div id="convListScrollContainer" class="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-2 pr-1">
+          <!-- 动态按项目与时间排序渲染会话列表条目 -->
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- 页脚状态 -->
+  <footer class="pt-1.5 border-t border-gray-800/60 text-[10px] text-gray-500 flex justify-between items-center max-w-4xl mx-auto w-full shrink-0">
+    <span>Antigravity Context HUD v1.1</span>
+    <span id="lastUpdatedTime">--:--:--</span>
+  </footer>
+
+  <!-- 🌟 自定义重启确认弹窗 (Custom Confirmation Modal) -->
+  <div id="restartModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-200">
+    <div class="bg-gray-900 border border-gray-700/90 rounded-xl p-5 max-w-sm w-full shadow-2xl space-y-4 transform scale-95 transition-transform duration-200" id="restartModalCard">
+      <div class="flex items-start space-x-3">
+        <div class="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <div class="flex-1">
+          <h3 class="text-sm font-bold text-gray-100">确认重启服务并更新版本？</h3>
+          <p class="text-xs text-gray-400 mt-1 leading-relaxed">
+            将重启后台服务进程，加载最新前端代码并强制清除缓存。
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end space-x-2 pt-2 border-t border-gray-800">
+        <button id="cancelRestartBtn" class="px-3.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-medium border border-gray-700 transition-colors">
+          取消
+        </button>
+        <button id="confirmRestartBtn" class="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-gray-950 text-xs font-bold transition-all shadow-md active:scale-95 flex items-center space-x-1">
+          <span>确认重启</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let pollTimer = null;
+    let selectedCid = localStorage.getItem('context_hud_locked_cid') || "";
+    let trackedCid = "";
+    let isFetching = false;
+    let isCompactView = localStorage.getItem('context_hud_compact') === 'true';
+    let cachedConversations = [];
+    let activeFilterProject = "ALL";
+
+    function escapeHtml(str) {
+      if (!str) return "";
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function formatNum(num) {
+      if (num === undefined || num === null) return "0";
+      return Number(num).toLocaleString('en-US');
+    }
+
+    function formatK(num) {
+      if (!num) return "0";
+      if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
+      if (num >= 1000) return (num / 1000).toFixed(1) + "k";
+      return num;
+    }
+
+    function timeAgo(dateInput) {
+      if (!dateInput) return "";
+      try {
+        const d = new Date(dateInput);
+        if (isNaN(d.getTime())) return "";
+        const now = new Date();
+        const diffSec = Math.floor((now - d) / 1000);
+        if (diffSec < 60) return "刚刚";
+        if (diffSec < 3600) return `${Math.floor(diffSec / 60)}分钟前`;
+        if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}小时前`;
+        if (diffSec < 86400 * 2) return "昨天";
+        if (diffSec < 86400 * 7) return `${Math.floor(diffSec / 86400)}天前`;
+        return `${d.getMonth() + 1}-${d.getDate()}`;
+      } catch (e) {
+        return "";
+      }
+    }
+
+    // 更新左右滑动的可视化按钮状态与滑块位置
+    function updateLockBadge() {
+      const thumb = document.getElementById('switchThumb');
+      const optAuto = document.getElementById('switchOptAuto');
+      const optLock = document.getElementById('switchOptLock');
+      const headerIcon = document.getElementById('headerLockIcon');
+
+      if (!thumb || !optAuto || !optLock) return;
+
+      if (selectedCid) {
+        // 状态：已锁定 -> 滑块平滑右移 (琥珀金/天蓝微光)
+        thumb.style.transform = 'translateX(100%)';
+        thumb.className = "absolute top-0.5 bottom-0.5 left-0.5 w-[calc(50%-2px)] rounded-md transition-transform duration-200 ease-out bg-sky-500/20 border border-sky-400/50 shadow-[0_0_8px_rgba(56,189,248,0.25)] pointer-events-none";
+        optAuto.className = "relative z-10 px-2 py-0.5 text-[10px] font-normal transition-colors flex items-center gap-1 text-gray-500 hover:text-gray-300 focus:outline-none";
+        optLock.className = "relative z-10 px-2 py-0.5 text-[10px] font-semibold transition-colors flex items-center gap-1 text-sky-200 focus:outline-none";
+        if (headerIcon) headerIcon.innerText = "📌";
+      } else {
+        // 状态：自动跟随 -> 滑块平滑归左
+        thumb.style.transform = 'translateX(0%)';
+        thumb.className = "absolute top-0.5 bottom-0.5 left-0.5 w-[calc(50%-2px)] rounded-md transition-transform duration-200 ease-out bg-emerald-500/15 border border-emerald-400/40 shadow-[0_0_8px_rgba(52,211,153,0.2)] pointer-events-none";
+        optAuto.className = "relative z-10 px-2 py-0.5 text-[10px] font-semibold transition-colors flex items-center gap-1 text-emerald-300 focus:outline-none";
+        optLock.className = "relative z-10 px-2 py-0.5 text-[10px] font-normal transition-colors flex items-center gap-1 text-gray-500 hover:text-gray-300 focus:outline-none";
+        if (headerIcon) headerIcon.innerText = "⚡";
+      }
+    }
+
+    // 切换极简模式 / 详细模式
+    function toggleViewMode() {
+      isCompactView = !isCompactView;
+      localStorage.setItem('context_hud_compact', isCompactView);
+      applyViewMode();
+    }
+
+    function applyViewMode() {
+      const detailedSec = document.getElementById('detailedSection');
+      const toggleBtnText = document.getElementById('viewToggleText');
+      const toggleIcon = document.getElementById('viewToggleIcon');
+
+      if (isCompactView) {
+        detailedSec.classList.add('hidden');
+        toggleBtnText.innerText = "展开全景";
+        toggleIcon.innerText = "📊";
+      } else {
+        detailedSec.classList.remove('hidden');
+        toggleBtnText.innerText = "极简模式";
+        toggleIcon.innerText = "📱";
+      }
+    }
+
+    // 渲染会话列表 (卡片内列表模式 · 按项目分类与排序)
+    function renderConversationListUI() {
+      const countBadge = document.getElementById('projectCountBadge');
+      const filterTabsEl = document.getElementById('projectFilterTabs');
+      const listContainerEl = document.getElementById('convListScrollContainer');
+      if (!listContainerEl) return;
+
+      const conversations = cachedConversations || [];
+      if (conversations.length === 0) {
+        listContainerEl.innerHTML = '<div class="text-gray-500 text-center py-4 text-xs">暂无历史会话</div>';
+        return;
+      }
+
+      // 1. 按照项目进行分组归类
+      const projectGroups = {};
+      conversations.forEach(c => {
+        const pName = c.project_name || '未绑定项目';
+        if (!projectGroups[pName]) {
+          projectGroups[pName] = {
+            name: pName,
+            path: c.project_path || '',
+            conversations: [],
+            maxTimestamp: 0
+          };
+        }
+        projectGroups[pName].conversations.push(c);
+        
+        const rawTime = c.last_user_input || c.last_modified;
+        const tVal = rawTime ? new Date(rawTime).getTime() : 0;
+        if (tVal > projectGroups[pName].maxTimestamp) {
+          projectGroups[pName].maxTimestamp = tVal;
+        }
+      });
+
+      // 2. 识别当前所属项目 (优先当前选定会话或第一条活跃会话所在项目)
+      let activeProjName = '';
+      if (selectedCid) {
+        const found = conversations.find(c => c.cid === selectedCid);
+        if (found) activeProjName = found.project_name;
+      }
+      if (!activeProjName && trackedCid) {
+        const found = conversations.find(c => c.cid === trackedCid);
+        if (found) activeProjName = found.project_name;
+      }
+      if (!activeProjName && conversations.length > 0) {
+        activeProjName = conversations[0].project_name;
+      }
+
+      // 3. 项目排序：当前项目置顶，其余项目按最新交互时间倒序，未绑定项目置底
+      const sortedProjects = Object.values(projectGroups).sort((a, b) => {
+        if (a.name === activeProjName) return -1;
+        if (b.name === activeProjName) return 1;
+        if (a.name === '未绑定项目') return 1;
+        if (b.name === '未绑定项目') return -1;
+        return b.maxTimestamp - a.maxTimestamp;
+      });
+
+      // 每个项目内部的会话：按用户交互时间/修改时间倒序排列
+      sortedProjects.forEach(proj => {
+        proj.conversations.sort((a, b) => {
+          const ta = new Date(a.last_user_input || a.last_modified || 0).getTime();
+          const tb = new Date(b.last_user_input || b.last_modified || 0).getTime();
+          return tb - ta;
+        });
+      });
+
+      if (countBadge) {
+        countBadge.innerText = `(${sortedProjects.length}个项目 · ${conversations.length}个会话)`;
+      }
+
+      // 4. 渲染项目快捷筛选 Tab Chips
+      if (filterTabsEl) {
+        let tabsHtml = `
+          <button class="project-tab px-2 py-0.5 rounded text-[10px] font-medium transition-colors shrink-0 ${activeFilterProject === 'ALL' ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40' : 'bg-gray-800/80 text-gray-400 hover:text-gray-200 border border-gray-700/60'}" data-pname="ALL">
+            全部 (${conversations.length})
+          </button>
+        `;
+        sortedProjects.forEach(proj => {
+          const isCurrentTag = (proj.name === activeProjName) ? ' (当前)' : '';
+          const isSelected = (activeFilterProject === proj.name);
+          tabsHtml += `
+            <button class="project-tab px-2 py-0.5 rounded text-[10px] font-medium transition-colors shrink-0 whitespace-nowrap ${isSelected ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40' : 'bg-gray-800/80 text-gray-400 hover:text-gray-200 border border-gray-700/60'}" data-pname="${escapeHtml(proj.name)}">
+              ${escapeHtml(proj.name)}${isCurrentTag} (${proj.conversations.length})
+            </button>
+          `;
+        });
+        filterTabsEl.innerHTML = tabsHtml;
+
+        // 绑定 Tab 点击事件
+        filterTabsEl.querySelectorAll('.project-tab').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const pname = btn.getAttribute('data-pname');
+            activeFilterProject = pname;
+            renderConversationListUI();
+          });
+        });
+      }
+
+      // 5. 渲染列表项
+      const targetProjects = (activeFilterProject === 'ALL') 
+        ? sortedProjects 
+        : sortedProjects.filter(p => p.name === activeFilterProject);
+
+      let listHtml = '';
+      targetProjects.forEach(proj => {
+        const isCurrentProj = (proj.name === activeProjName);
+        listHtml += `
+          <div class="space-y-1">
+            <div class="flex items-center justify-between px-1 py-0.5 text-[10px] text-gray-400 font-mono">
+              <span class="flex items-center gap-1 font-semibold ${isCurrentProj ? 'text-sky-400' : 'text-gray-400'}">
+                📂 ${escapeHtml(proj.name)}${isCurrentProj ? ' (当前项目)' : ''}
+              </span>
+              <span class="text-gray-500 text-[9px]">${proj.conversations.length} 个会话</span>
+            </div>
+            <div class="space-y-1">
+        `;
+
+        proj.conversations.forEach(c => {
+          const isMonitored = (selectedCid && c.cid === selectedCid) || (!selectedCid && c.cid === trackedCid);
+          const timeDesc = timeAgo(c.last_user_input || c.last_modified);
+          
+          listHtml += `
+            <div class="conv-row group p-1.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-2 select-none ${isMonitored ? 'border-sky-500/60 bg-sky-500/15 text-sky-200 shadow-sm ring-1 ring-sky-500/20' : 'border-gray-800/80 bg-gray-950/60 hover:bg-gray-800/70 hover:border-gray-700 text-gray-300'}" data-cid="${c.cid}">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1.5">
+                  <span class="w-1.5 h-1.5 rounded-full ${isMonitored ? 'bg-sky-400 animate-pulse' : 'bg-gray-600 group-hover:bg-gray-400'} shrink-0"></span>
+                  <span class="text-xs font-medium truncate ${isMonitored ? 'text-sky-200 font-semibold' : 'text-gray-200'}">${escapeHtml(c.title)}</span>
+                  ${isMonitored ? '<span class="text-[9px] px-1 py-0.2 rounded bg-sky-500/20 text-sky-300 font-mono shrink-0">当前监控</span>' : ''}
+                </div>
+                <div class="text-[10px] text-gray-500 font-mono mt-0.5 truncate flex items-center gap-1">
+                  <span>${escapeHtml(c.project_path || c.project_name || '')}</span>
+                </div>
+              </div>
+              <div class="text-right shrink-0 flex flex-col items-end gap-0.5">
+                <span class="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/10 text-purple-400 font-mono">${c.step_count || 0} 步</span>
+                <span class="text-[10px] text-gray-400 font-mono">${timeDesc || '--'}</span>
+              </div>
+            </div>
+          `;
+        });
+
+        listHtml += `
+            </div>
+          </div>
+        `;
+      });
+
+      listContainerEl.innerHTML = listHtml;
+
+      // 为每一行会话卡片绑定一键点击切换与锁定交互
+      listContainerEl.querySelectorAll('.conv-row').forEach(row => {
+        row.addEventListener('click', () => {
+          const cid = row.getAttribute('data-cid');
+          if (cid) {
+            selectedCid = cid;
+            localStorage.setItem('context_hud_locked_cid', selectedCid);
+            updateLockBadge();
+            renderConversationListUI();
+            fetchContextData();
+          }
+        });
+      });
+    }
+
+    async function loadConversations() {
+      try {
+        const res = await fetch('/api/conversations');
+        if (!res.ok) return;
+        const data = await res.json();
+        cachedConversations = data.conversations || [];
+        renderConversationListUI();
+        updateLockBadge();
+      } catch (e) {
+        console.error("加载并分类会话列表异常:", e);
+      }
+    }
+
+    async function fetchContextData() {
+      if (isFetching) return;
+      isFetching = true;
+      const refreshIcon = document.getElementById('refreshIcon');
+      refreshIcon.classList.add('animate-spin');
+
+      try {
+        let url = '/api/active-context';
+        if (selectedCid) {
+          url += `?cid=${encodeURIComponent(selectedCid)}`;
+        } else if (trackedCid) {
+          url += `?tracked_cid=${encodeURIComponent(trackedCid)}`;
+        }
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("API 响应失败");
+        const data = await res.json();
+        if (data.success) {
+          renderDashboard(data);
+        } else {
+          const brief = document.getElementById('headerConvBrief');
+          if (brief) brief.innerText = data.error || "未能获取上下文数据";
+        }
+      } catch (err) {
+        const brief = document.getElementById('headerConvBrief');
+        if (brief) brief.innerText = "服务连接中断，正在重试...";
+      } finally {
+        isFetching = false;
+        setTimeout(() => refreshIcon.classList.remove('animate-spin'), 300);
+      }
+    }
+
+    function renderDashboard(data) {
+      const conv = data.conversation || {};
+      const ctx = data.context || {};
+      const model = data.model || {};
+      const health = ctx.health || {};
+      const speed = ctx.speed_grade || {};
+      const stacked = ctx.stacked_composition || {};
+
+      trackedCid = conv.cid || trackedCid;
+
+      // 顶部标题与选择框同步
+      const convLabel = `[${conv.project_name || '未绑定'}] ${conv.title || '当前会话'}`;
+      const headerBrief = document.getElementById('headerConvBrief');
+      if (headerBrief) {
+        headerBrief.innerText = convLabel;
+        headerBrief.title = conv.title || '';
+      }
+
+      // 下方卡片内的当前选中会话详细指标
+      const actProj = document.getElementById('convActiveProject');
+      const actPath = document.getElementById('convActivePath');
+      const actSteps = document.getElementById('convActiveSteps');
+      const actTime = document.getElementById('convActiveTime');
+
+      if (actProj) actProj.innerText = conv.project_name || '未绑定项目';
+      if (actPath) {
+        actPath.innerText = conv.project_path || '无本地路径';
+        actPath.title = conv.project_path || '';
+      }
+      if (actSteps) actSteps.innerText = `${ctx.total_steps || conv.step_count || 0} 步`;
+      if (actTime) actTime.innerText = timeAgo(conv.last_user_input || conv.last_modified) || '活跃中';
+
+      updateLockBadge();
+
+      // Hero 大号指标 (256k 窗口基准)
+      const ratio = ctx.occupancy_ratio || 0;
+      document.getElementById('heroOccupancyVal').innerText = `${ratio}%`;
+      document.getElementById('heroTokensSummary').innerText = `${formatK(ctx.current_tokens)} / ${model.limit_display || '256k'} Tokens`;
+      document.getElementById('cacheHitSummary').innerText = `缓存率: ${ctx.cache_hit_ratio}%`;
+
+      // 三段式横向堆叠条渲染
+      document.getElementById('barBaseline').style.width = `${stacked.baseline_pct || 0}%`;
+      document.getElementById('barGrowth').style.width = `${stacked.growth_pct || 0}%`;
+      document.getElementById('barFree').style.width = `${stacked.free_pct || 100}%`;
+
+      document.getElementById('legendBaselineVal').innerText = `${formatK(ctx.baseline_system_tokens)}`;
+      document.getElementById('legendGrowthVal').innerText = `${formatK(ctx.growth_tokens)}`;
+      document.getElementById('legendFreeVal').innerText = `${formatK(ctx.remaining_tokens)}`;
+
+      // 渲染单行运行元数据
+      document.getElementById('metaModelName').innerText = model.name || "Gemini 3.8";
+      document.getElementById('metaStepsCount').innerText = `${ctx.total_steps} 步`;
+      document.getElementById('metaLatestOutput').innerText = formatNum(ctx.latest_output);
+      document.getElementById('metaUncachedPart').innerText = `+${formatNum(ctx.latest_uncached_input)}`;
+
+      // 绘制走势图
+      renderStepChart(data.step_history || []);
+
+      // 同步刷新下方会话列表激活项
+      if (cachedConversations && cachedConversations.length > 0) {
+        renderConversationListUI();
+      }
+
+      document.getElementById('lastUpdatedTime').innerText = data.updated_at || new Date().toLocaleTimeString();
+    }
+
+    let cachedStepHistory = [];
+
+    // 绘制 SVG 全量上下文走势图 (1:1 物理像素完美映射 · 彻底消除压扁变形 · 增高内部视觉空间)
+    function renderStepChart(history) {
+      if (history) cachedStepHistory = history;
+      const dataHistory = history || cachedStepHistory;
+
+      const svg = document.getElementById('trendSvg');
+      const emptyText = document.getElementById('emptyChartText');
+      const tooltip = document.getElementById('chartTooltip');
+      const container = document.getElementById('chartContainer');
+
+      if (!dataHistory || dataHistory.length < 2) {
+        svg.innerHTML = '';
+        emptyText.classList.remove('hidden');
+        return;
+      }
+      emptyText.classList.add('hidden');
+
+      // 动态读取容器当前的物理像素尺寸，1:1 映射坐标系，彻底杜绝圆点和文字变形
+      const rect = container.getBoundingClientRect();
+      const W = Math.max(280, Math.round(rect.width) || 520);
+      const H = Math.max(160, Math.round(rect.height) || 210);
+
+      svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+      svg.removeAttribute('preserveAspectRatio');
+
+      const padLeft = 48;   // 预留 48px 清晰展示 Y 轴数值刻度，避免重叠
+      const padRight = 18;
+      const padTop = 24;    // 预留 24px 给顶部刻度与压缩标签
+      const padBottom = 22;
+
+      const chartW = W - padLeft - padRight;
+      const chartH = H - padTop - padBottom;
+
+      const maxRaw = Math.max(...dataHistory.map(d => d.context_tokens || 0), 1000);
+      const maxVal = Math.ceil(maxRaw * 1.06);
+      const minVal = 0;
+
+      const ptsContext = [];
+
+      dataHistory.forEach((d, i) => {
+        const x = padLeft + (i / (dataHistory.length - 1)) * chartW;
+        const yCtx = H - padBottom - ((d.context_tokens - minVal) / (maxVal - minVal)) * chartH;
+        ptsContext.push({
+          x,
+          y: yCtx,
+          data: d,
+          isCompaction: Boolean(d.is_compaction)
+        });
+      });
+
+      // 路径与阴影面积
+      const dContext = ptsContext.map((p, i) => (i === 0 ? `M ${p.x.toFixed(1)} ${p.y.toFixed(1)}` : `L ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)).join(' ');
+      const dArea = `${dContext} L ${ptsContext[ptsContext.length - 1].x.toFixed(1)} ${H - padBottom} L ${ptsContext[0].x.toFixed(1)} ${H - padBottom} Z`;
+
+      const yTop = padTop;
+      const yMid = padTop + chartH * 0.5;
+      const yBottom = H - padBottom;
+
+      let svgHtml = `
+        <defs>
+          <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.28" />
+            <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.02" />
+          </linearGradient>
+        </defs>
+
+        <!-- Y 轴刻度文字与网格基准虚线 (1:1 正圆与正体文字，绝对不压扁) -->
+        <text x="${padLeft - 8}" y="${yTop + 4}" text-anchor="end" class="text-[10px] fill-gray-500 font-mono select-none">${formatK(maxVal)}</text>
+        <line x1="${padLeft}" y1="${yTop}" x2="${W - padRight}" y2="${yTop}" stroke="#1f2937" stroke-width="0.8" stroke-dasharray="3,3" />
+
+        <text x="${padLeft - 8}" y="${yMid + 4}" text-anchor="end" class="text-[10px] fill-gray-500 font-mono select-none">${formatK(Math.round(maxVal / 2))}</text>
+        <line x1="${padLeft}" y1="${yMid}" x2="${W - padRight}" y2="${yMid}" stroke="#1f2937" stroke-width="0.8" stroke-dasharray="3,3" />
+
+        <text x="${padLeft - 8}" y="${yBottom + 4}" text-anchor="end" class="text-[10px] fill-gray-500 font-mono select-none">0</text>
+        <line x1="${padLeft}" y1="${yBottom}" x2="${W - padRight}" y2="${yBottom}" stroke="#374151" stroke-width="1" />
+
+        <!-- 全周期渐变阴影面积 -->
+        <path d="${dArea}" fill="url(#areaGrad)" />
+
+        <!-- 全量上下文主走势曲线 (单线平滑，展示完整历史生命周期) -->
+        <path d="${dContext}" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+      `;
+
+      // 绘制关键锚点与压缩事件标注 (纯正正圆，比例端正)
+      ptsContext.forEach((p, idx) => {
+        // 1. 压缩瘦身事件标注
+        if (p.isCompaction) {
+          svgHtml += `
+            <line x1="${p.x.toFixed(1)}" y1="${padTop - 4}" x2="${p.x.toFixed(1)}" y2="${yBottom}" stroke="#c084fc" stroke-width="1.2" stroke-dasharray="3,2" />
+            <rect x="${(p.x - 28).toFixed(1)}" y="${padTop - 14}" width="56" height="15" rx="3" fill="#3b0764" stroke="#a855f7" stroke-width="0.8" />
+            <text x="${p.x.toFixed(1)}" y="${padTop - 3}" text-anchor="middle" class="text-[9px] fill-purple-200 font-sans font-bold select-none pointer-events-none">📉 压缩精简</text>
+            <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4.5" fill="#a855f7" stroke="#ffffff" stroke-width="1.5" />
+          `;
+          return;
+        }
+
+        // 2. 首尾与节点：点数少于等于 40 步时绘制普通节点；高密度时仅绘制起点和终点
+        if (idx === 0) {
+          svgHtml += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="#0f172a" stroke="#64748b" stroke-width="1.2" />`;
+        } else if (idx === ptsContext.length - 1) {
+          svgHtml += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="#38bdf8" stroke="#ffffff" stroke-width="2" />`;
+        } else if (dataHistory.length <= 40) {
+          svgHtml += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.5" fill="#0f172a" stroke="#64748b" stroke-width="1.2" />`;
+        }
+      });
+
+      // 悬停十字准星导向线与吸附光点
+      svgHtml += `
+        <g id="scrubberGroup" style="display: none; pointer-events: none;">
+          <line id="scrubberLine" x1="0" y1="${padTop - 4}" x2="0" y2="${yBottom}" stroke="#38bdf8" stroke-width="1" stroke-dasharray="3,2" />
+          <circle id="scrubberHalo" cx="0" cy="0" r="8" fill="#38bdf8" fill-opacity="0.25" />
+          <circle id="scrubberDot" cx="0" cy="0" r="4" fill="#38bdf8" stroke="#ffffff" stroke-width="1.5" />
+        </g>
+        <!-- 鼠标交互响应透明层覆盖整个绘图区 -->
+        <rect id="chartOverlay" x="${padLeft}" y="${padTop}" width="${chartW}" height="${chartH}" fill="transparent" class="cursor-crosshair" />
+      `;
+
+      svg.innerHTML = svgHtml;
+
+      // 顶部标题范围与底部刻度数值说明
+      const firstStep = dataHistory[0];
+      const lastStep = dataHistory[dataHistory.length - 1];
+      const rangeEl = document.getElementById('chartRangeLabel');
+      if (rangeEl) {
+        rangeEl.innerText = `(全量步骤 · 共 ${dataHistory.length} 步)`;
+      }
+      document.getElementById('chartLabelStart').innerHTML = `Step ${firstStep.step_index} <b class="text-sky-400 font-mono font-medium">(${formatK(firstStep.context_tokens)})</b>`;
+      document.getElementById('chartLabelEnd').innerHTML = `Step ${lastStep.step_index} <b class="text-sky-400 font-mono font-bold">(${formatK(lastStep.context_tokens)})</b>`;
+      document.getElementById('chartLabelMid').innerHTML = `<span class="text-gray-400 font-sans">全景生命周期 (共 ${dataHistory.length} 轮)</span>`;
+
+      // 十字准星与全域平滑吸附探针交互 (1:1 像素定位，零误差吸附)
+      const overlay = svg.querySelector('#chartOverlay');
+      const scrubberGroup = svg.querySelector('#scrubberGroup');
+      const scrubberLine = svg.querySelector('#scrubberLine');
+      const scrubberHalo = svg.querySelector('#scrubberHalo');
+      const scrubberDot = svg.querySelector('#scrubberDot');
+
+      function updateProbe(clientX) {
+        const svgBox = svg.getBoundingClientRect();
+        const containerBox = container.getBoundingClientRect();
+        const mouseX = clientX - svgBox.left;
+        const ratio = Math.max(0, Math.min(1, (mouseX - padLeft) / chartW));
+        const idx = Math.round(ratio * (dataHistory.length - 1));
+
+        const d = dataHistory[idx];
+        const p = ptsContext[idx];
+        if (!d || !p) return;
+
+        scrubberGroup.style.display = '';
+        scrubberLine.setAttribute('x1', p.x.toFixed(1));
+        scrubberLine.setAttribute('x2', p.x.toFixed(1));
+        scrubberHalo.setAttribute('cx', p.x.toFixed(1));
+        scrubberHalo.setAttribute('cy', p.y.toFixed(1));
+        scrubberDot.setAttribute('cx', p.x.toFixed(1));
+        scrubberDot.setAttribute('cy', p.y.toFixed(1));
+
+        const rawTools = (d.tools && d.tools.length > 0) ? d.tools : [];
+        const toolDesc = rawTools.length > 0 ? rawTools.join(', ') : '对话交互';
+
+        let specialBadge = '';
+        if (d.is_compaction) {
+          specialBadge = `<div class="bg-purple-950/80 border border-purple-500/50 text-purple-300 px-1.5 py-0.5 rounded text-[10px] mb-1 font-bold">📉 上下文压缩释放: -${formatK(d.compaction_drop)} Tokens</div>`;
+        }
+
+        tooltip.innerHTML = `
+          ${specialBadge}
+          <div class="font-bold text-sky-400 flex items-center justify-between gap-3">
+            <span>Step ${d.step_index}</span>
+            <span class="text-gray-400 text-[10px] font-normal font-sans">${toolDesc}</span>
+          </div>
+          <div class="mt-1 space-y-0.5 text-[11px] font-mono">
+            <div class="flex justify-between gap-2 text-gray-300">
+              <span>上下文总量:</span>
+              <b class="text-white">${formatNum(d.context_tokens)}</b>
+            </div>
+            <div class="flex justify-between gap-2 text-gray-400">
+              <span>本步新增:</span>
+              <b class="${(d.delta_tokens || 0) > 2000 ? 'text-amber-400' : 'text-sky-300'}">+${formatNum(d.delta_tokens || 0)}</b>
+            </div>
+            <div class="flex justify-between gap-2 text-gray-400">
+              <span>缓存读取:</span>
+              <b class="text-teal-400">${formatNum(d.cache_read_tokens || 0)}</b>
+            </div>
+          </div>
+        `;
+        tooltip.classList.remove('hidden');
+
+        // 计算在容器内的绝对像素坐标
+        const dotScreenX = p.x;
+        const dotScreenY = p.y;
+
+        // 自适应左右防溢出
+        if (dotScreenX > containerBox.width * 0.62) {
+          tooltip.style.left = `${Math.max(8, dotScreenX - 180)}px`;
+        } else {
+          tooltip.style.left = `${dotScreenX + 12}px`;
+        }
+        tooltip.style.top = `${Math.max(6, Math.min(containerBox.height - 90, dotScreenY - 26))}px`;
+      }
+
+      if (overlay) {
+        overlay.addEventListener('mousemove', (e) => {
+          updateProbe(e.clientX);
+        });
+        overlay.addEventListener('mouseleave', () => {
+          scrubberGroup.style.display = 'none';
+          tooltip.classList.add('hidden');
+        });
+      }
+    }
+
+    function openRestartModal() {
+      const modal = document.getElementById('restartModal');
+      const card = document.getElementById('restartModalCard');
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        modal.classList.add('opacity-100');
+        card.classList.remove('scale-95');
+        card.classList.add('scale-100');
+      }, 10);
+    }
+
+    function closeRestartModal() {
+      const modal = document.getElementById('restartModal');
+      const card = document.getElementById('restartModalCard');
+      modal.classList.remove('opacity-100');
+      modal.classList.add('opacity-0');
+      card.classList.remove('scale-100');
+      card.classList.add('scale-95');
+      setTimeout(() => {
+        modal.classList.add('hidden');
+      }, 200);
+    }
+
+    async function executeRestartServer() {
+      const confirmBtn = document.getElementById('confirmRestartBtn');
+      const confirmText = confirmBtn.querySelector('span');
+      confirmBtn.disabled = true;
+      if (confirmText) confirmText.innerText = "正在完整重启服务内核...";
+
+      const btn = document.getElementById('restartBtn');
+      const btnText = document.getElementById('restartBtnText');
+      const icon = document.getElementById('restartIcon');
+
+      btn.disabled = true;
+      btn.classList.add('opacity-50');
+      icon.classList.add('animate-spin');
+      btnText.innerText = "重载中...";
+      stopPolling();
+
+      try {
+        await fetch('/api/restart', { method: 'POST' });
+      } catch (e) {
+        console.warn("Restart POST notice:", e);
+      }
+
+      closeRestartModal();
+
+      // 真·完整重启：带时间戳重载页面（重读最新 HTML/JS 并由已热重载的 Python 内核重新拉取全量数据）
+      setTimeout(() => {
+        const cleanUrl = window.location.origin + window.location.pathname + '?_t=' + Date.now();
+        window.location.replace(cleanUrl);
+      }, 300);
+    }
+
+    function setupEvents() {
+      // 重启服务弹窗交互
+      document.getElementById('restartBtn').addEventListener('click', openRestartModal);
+      document.getElementById('cancelRestartBtn').addEventListener('click', closeRestartModal);
+      document.getElementById('confirmRestartBtn').addEventListener('click', executeRestartServer);
+      document.getElementById('restartModal').addEventListener('click', (e) => {
+        if (e.target.id === 'restartModal') closeRestartModal();
+      });
+
+      // 视图切换
+      document.getElementById('viewToggleBtn').addEventListener('click', toggleViewMode);
+
+      // 会话选择切换与持久锁定 (兼容处理)
+      const convSel = document.getElementById('convSelect');
+      if (convSel) {
+        convSel.addEventListener('change', (e) => {
+          const val = e.target.value;
+          if (val) {
+            selectedCid = val;
+            localStorage.setItem('context_hud_locked_cid', selectedCid);
+          } else {
+            selectedCid = "";
+            localStorage.removeItem('context_hud_locked_cid');
+            trackedCid = "";
+          }
+          updateLockBadge();
+          renderConversationListUI();
+          fetchContextData();
+        });
+      }
+
+      // 左右滑动的可视化切换按钮交互 (Segmented Slider Switch)
+      const optAuto = document.getElementById('switchOptAuto');
+      const optLock = document.getElementById('switchOptLock');
+      const switchBox = document.getElementById('followLockSwitch');
+
+      function setFollowMode() {
+        if (!selectedCid) return;
+        selectedCid = "";
+        localStorage.removeItem('context_hud_locked_cid');
+        updateLockBadge();
+        renderConversationListUI();
+        fetchContextData();
+      }
+
+      function setLockMode() {
+        if (selectedCid) return;
+        if (trackedCid) {
+          selectedCid = trackedCid;
+          localStorage.setItem('context_hud_locked_cid', selectedCid);
+          updateLockBadge();
+          renderConversationListUI();
+          fetchContextData();
+        }
+      }
+
+      if (optAuto) {
+        optAuto.addEventListener('click', (e) => {
+          e.stopPropagation();
+          setFollowMode();
+        });
+      }
+
+      if (optLock) {
+        optLock.addEventListener('click', (e) => {
+          e.stopPropagation();
+          setLockMode();
+        });
+      }
+
+      if (switchBox) {
+        switchBox.addEventListener('click', () => {
+          if (selectedCid) {
+            setFollowMode();
+          } else {
+            setLockMode();
+          }
+        });
+      }
+
+      // 手动刷新
+      document.getElementById('manualRefreshBtn').addEventListener('click', () => {
+        fetchContextData();
+      });
+
+      // 自动刷新
+      const toggle = document.getElementById('autoRefreshToggle');
+      const badge = document.getElementById('liveStatusBadge');
+      toggle.addEventListener('change', (e) => {
+        if (e.target.checked) {
+          badge.classList.remove('hidden');
+          startPolling();
+        } else {
+          badge.classList.add('hidden');
+          stopPolling();
+        }
+      });
+
+      // 监听走势图容器尺寸变化，自适应 1:1 动态防抖重绘 (始终正圆与无畸变排版)
+      let resizeDebounce = null;
+      if (window.ResizeObserver) {
+        const resizeObserver = new ResizeObserver(() => {
+          if (resizeDebounce) clearTimeout(resizeDebounce);
+          resizeDebounce = setTimeout(() => {
+            if (cachedStepHistory && cachedStepHistory.length >= 2) {
+              renderStepChart();
+            }
+          }, 80);
+        });
+        const chartCont = document.getElementById('chartContainer');
+        if (chartCont) resizeObserver.observe(chartCont);
+      }
+    }
+
+    function startPolling() {
+      stopPolling();
+      pollTimer = setInterval(fetchContextData, 2000);
+    }
+
+    function stopPolling() {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      applyViewMode();
+      setupEvents();
+
+      if (window.STATIC_OFFLINE_MODE && window.INITIAL_CONTEXT_DATA) {
+        // 零后台零端口：直接渲染预注入的静态数据
+        cachedConversations = window.INITIAL_CONTEXT_DATA.all_conversations || [];
+        renderDashboard(window.INITIAL_CONTEXT_DATA);
+        renderConversationListUI();
+
+        const badge = document.getElementById('liveStatusBadge');
+        badge.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-sky-500/10 text-sky-400 border border-sky-500/20";
+        badge.innerHTML = "<span>⚡ 零后台·零端口</span>";
+
+        const toggle = document.getElementById('autoRefreshToggle');
+        toggle.checked = false;
+        toggle.disabled = true;
+
+        const restartBtn = document.getElementById('restartBtn');
+        if (restartBtn) restartBtn.style.display = 'none';
+
+        const manualBtn = document.getElementById('manualRefreshBtn');
+        if (manualBtn) {
+          manualBtn.title = "离线静态快照模式";
+        }
+      } else {
+        await loadConversations();
+        await fetchContextData();
+        startPolling();
+      }
+    });
+  </script>
+</body>
+</html>

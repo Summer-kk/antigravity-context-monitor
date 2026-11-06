@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>当前对话上下文监控 - Antigravity HUD</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    :root {
+      --bg-main: var(--background, #090d16);
+      --bg-card: var(--card, #111827);
+      --border-color: var(--border, #1f2937);
+      --text-main: var(--foreground, #f9fafb);
+      --text-muted: var(--muted-foreground, #9ca3af);
+    }
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background-color: #374151;
+      border-radius: 4px;
+    }
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.15); opacity: 0.4; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    .pulse-ring {
+      animation: pulse-ring 2s infinite ease-in-out;
+    }
+    .chart-dot {
+      transition: all 0.2s ease;
+    }
+    .chart-dot:hover {
+      r: 6;
+      stroke-width: 3;
+      cursor: pointer;
+    }
+  </style>
+
+  <script>
+    window.SANITY_DEMO_DATA = {"success": true, "conversation": {"cid": "conv-core-001", "title": "构建实时上下文监控 Sidecar 插件", "project_name": "Core-Engine", "project_path": "C:\\Workspace\\Core-Engine", "last_modified": "2026-11-06 14:00:00", "last_user_input": "2026-11-06 14:00:00", "step_count": 398}, "model": {"name": "Gemini 3.8 Flash", "context_limit": 262144, "limit_display": "256k"}, "context": {"current_tokens": 88640, "limit_tokens": 262144, "remaining_tokens": 173504, "occupancy_ratio": 33.82, "speed_grade": {"title": "极速闪电档", "desc": "上下文近乎全量命中缓存，首字毫秒级到达", "icon": "⚡", "color": "emerald"}, "latest_uncached_input": 2288, "latest_cache_read": 86352, "latest_output": 1223, "cache_hit_ratio": 97.4, "baseline_system_tokens": 10420, "growth_tokens": 78220, "avg_step_growth": 220, "total_steps": 398, "last_step_index": 398, "last_tools": ["read_file", "edit_file"], "health": {"level": "healthy", "status_text": "健康", "tip": "", "badge_color": "emerald", "action": "none"}, "stacked_composition": {"baseline_pct": 4.0, "growth_pct": 29.8, "free_pct": 66.2}, "spikes": []}, "cumulative": {"input_tokens": 2154300, "cache_tokens": 42180000, "output_tokens": 312000, "total_tokens": 44646300}, "step_history": [{"step_index": 1, "context_tokens": 11220, "delta_tokens": 800, "cache_read_tokens": 10546, "input_tokens": 800, "output_tokens": 120, "tools": ["read_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 4, "context_tokens": 12124, "delta_tokens": 904, "cache_read_tokens": 11396, "input_tokens": 904, "output_tokens": 120, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 7, "context_tokens": 13129, "delta_tokens": 1005, "cache_read_tokens": 12341, "input_tokens": 1005, "output_tokens": 120, "tools": ["read_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 10, "context_tokens": 14229, "delta_tokens": 1100, "cache_read_tokens": 13375, "input_tokens": 1100, "output_tokens": 120, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 13, "context_tokens": 15415, "delta_tokens": 1186, "cache_read_tokens": 14490, "input_tokens": 1186, "output_tokens": 120, "tools": ["read_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 16, "context_tokens": 16676, "delta_tokens": 1261, "cache_read_tokens": 15675, "input_tokens": 1261, "output_tokens": 120, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 19, "context_tokens": 17998, "delta_tokens": 1322, "cache_read_tokens": 16918, "input_tokens": 1322, "output_tokens": 120, "tools": ["read_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 22, "context_tokens": 19367, "delta_tokens": 1369, "cache_read_tokens": 18204, "input_tokens": 1369, "output_tokens": 120, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 25, "context_tokens": 20766, "delta_tokens": 1399, "cache_read_tokens": 19520, "input_tokens": 1399, "output_tokens": 120, "tools": ["read_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 28, "context_tokens": 22180, "delta_tokens": 1414, "cache_read_tokens": 20849, "input_tokens": 1414, "output_tokens": 120, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 31, "context_tokens": 23593, "delta_tokens": 1413, "cache_read_tokens": 22177, "input_tokens": 1413, "output_tokens": 120, "tools": ["read_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 34, "context_tokens": 24991, "delta_tokens": 1398, "cache_read_tokens": 23491, "input_tokens": 1398, "output_tokens": 120, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 37, "context_tokens": 26361, "delta_tokens": 1370, "cache_read_tokens": 24779, "input_tokens": 1370, "output_tokens": 120, "tools": ["read_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 40, "context_tokens": 27692, "delta_tokens": 1331, "cache_read_tokens": 26030, "input_tokens": 1331, "output_tokens": 120, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 43, "context_tokens": 28975, "delta_tokens": 1283, "cache_read_tokens": 27236, "input_tokens": 1283, "output_tokens": 120, "tools": ["read_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 46, "context_tokens": 30206, "delta_tokens": 1231, "cache_read_tokens": 28393, "input_tokens": 1231, "output_tokens": 120, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 49, "context_tokens": 31382, "delta_tokens": 1176, "cache_read_tokens": 29499, "input_tokens": 1176, "output_tokens": 120, "tools": ["read_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 52, "context_tokens": 32504, "delta_tokens": 1122, "cache_read_tokens": 30553, "input_tokens": 1122, "output_tokens": 120, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 55, "context_tokens": 33576, "delta_tokens": 1072, "cache_read_tokens": 31561, "input_tokens": 1072, "output_tokens": 120, "tools": ["read_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 58, "context_tokens": 34606, "delta_tokens": 1030, "cache_read_tokens": 32529, "input_tokens": 1030, "output_tokens": 120, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 61, "context_tokens": 35603, "delta_tokens": 997, "cache_read_tokens": 33466, "input_tokens": 997, "output_tokens": 120, "tools": ["read_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 64, "context_tokens": 36579, "delta_tokens": 976, "cache_read_tokens": 34384, "input_tokens": 976, "output_tokens": 120, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 67, "context_tokens": 37548, "delta_tokens": 969, "cache_read_tokens": 35295, "input_tokens": 969, "output_tokens": 120, "tools": ["read_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 70, "context_tokens": 38525, "delta_tokens": 977, "cache_read_tokens": 36213, "input_tokens": 977, "output_tokens": 120, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 73, "context_tokens": 39526, "delta_tokens": 1001, "cache_read_tokens": 37154, "input_tokens": 1001, "output_tokens": 120, "tools": ["read_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 76, "context_tokens": 40567, "delta_tokens": 1041, "cache_read_tokens": 38132, "input_tokens": 1041, "output_tokens": 120, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 79, "context_tokens": 41663, "delta_tokens": 1096, "cache_read_tokens": 39163, "input_tokens": 1096, "output_tokens": 120, "tools": ["read_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 82, "context_tokens": 42828, "delta_tokens": 1165, "cache_read_tokens": 40258, "input_tokens": 1165, "output_tokens": 120, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 85, "context_tokens": 44075, "delta_tokens": 1247, "cache_read_tokens": 41430, "input_tokens": 1247, "output_tokens": 120, "tools": ["read_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 88, "context_tokens": 45414, "delta_tokens": 1339, "cache_read_tokens": 42689, "input_tokens": 1339, "output_tokens": 120, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 91, "context_tokens": 46852, "delta_tokens": 1438, "cache_read_tokens": 44040, "input_tokens": 1438, "output_tokens": 120, "tools": ["read_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 94, "context_tokens": 48393, "delta_tokens": 1541, "cache_read_tokens": 45489, "input_tokens": 1541, "output_tokens": 120, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 97, "context_tokens": 50039, "delta_tokens": 1646, "cache_read_tokens": 47036, "input_tokens": 1646, "output_tokens": 120, "tools": ["read_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 100, "context_tokens": 51788, "delta_tokens": 1749, "cache_read_tokens": 48680, "input_tokens": 1749, "output_tokens": 120, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 103, "context_tokens": 53635, "delta_tokens": 1847, "cache_read_tokens": 50416, "input_tokens": 1847, "output_tokens": 120, "tools": ["read_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 106, "context_tokens": 55572, "delta_tokens": 1937, "cache_read_tokens": 52237, "input_tokens": 1937, "output_tokens": 120, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 109, "context_tokens": 57589, "delta_tokens": 2017, "cache_read_tokens": 54133, "input_tokens": 2017, "output_tokens": 120, "tools": ["read_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 112, "context_tokens": 59673, "delta_tokens": 2084, "cache_read_tokens": 56092, "input_tokens": 2084, "output_tokens": 120, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 115, "context_tokens": 61810, "delta_tokens": 2137, "cache_read_tokens": 58101, "input_tokens": 2137, "output_tokens": 120, "tools": ["read_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 118, "context_tokens": 63984, "delta_tokens": 2174, "cache_read_tokens": 60144, "input_tokens": 2174, "output_tokens": 120, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 120, "context_tokens": 65784, "delta_tokens": 1800, "cache_read_tokens": 63152, "input_tokens": 1800, "output_tokens": 300, "tools": ["edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 123, "context_tokens": 67607, "delta_tokens": 1823, "cache_read_tokens": 64902, "input_tokens": 1823, "output_tokens": 300, "tools": ["write_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 126, "context_tokens": 69440, "delta_tokens": 1833, "cache_read_tokens": 66662, "input_tokens": 1833, "output_tokens": 300, "tools": ["edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 129, "context_tokens": 71270, "delta_tokens": 1830, "cache_read_tokens": 68419, "input_tokens": 1830, "output_tokens": 300, "tools": ["write_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 132, "context_tokens": 73085, "delta_tokens": 1815, "cache_read_tokens": 70161, "input_tokens": 1815, "output_tokens": 300, "tools": ["edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 135, "context_tokens": 74874, "delta_tokens": 1789, "cache_read_tokens": 71879, "input_tokens": 1789, "output_tokens": 300, "tools": ["write_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 138, "context_tokens": 76626, "delta_tokens": 1752, "cache_read_tokens": 73560, "input_tokens": 1752, "output_tokens": 300, "tools": ["edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 141, "context_tokens": 78334, "delta_tokens": 1708, "cache_read_tokens": 75200, "input_tokens": 1708, "output_tokens": 300, "tools": ["write_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 144, "context_tokens": 79991, "delta_tokens": 1657, "cache_read_tokens": 76791, "input_tokens": 1657, "output_tokens": 300, "tools": ["edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 147, "context_tokens": 81592, "delta_tokens": 1601, "cache_read_tokens": 78328, "input_tokens": 1601, "output_tokens": 300, "tools": ["write_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 150, "context_tokens": 83134, "delta_tokens": 1542, "cache_read_tokens": 79808, "input_tokens": 1542, "output_tokens": 300, "tools": ["edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 153, "context_tokens": 84616, "delta_tokens": 1482, "cache_read_tokens": 81231, "input_tokens": 1482, "output_tokens": 300, "tools": ["write_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 156, "context_tokens": 86039, "delta_tokens": 1423, "cache_read_tokens": 82597, "input_tokens": 1423, "output_tokens": 300, "tools": ["edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 159, "context_tokens": 87406, "delta_tokens": 1367, "cache_read_tokens": 83909, "input_tokens": 1367, "output_tokens": 300, "tools": ["write_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 162, "context_tokens": 88723, "delta_tokens": 1317, "cache_read_tokens": 85174, "input_tokens": 1317, "output_tokens": 300, "tools": ["edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 165, "context_tokens": 89996, "delta_tokens": 1273, "cache_read_tokens": 86396, "input_tokens": 1273, "output_tokens": 300, "tools": ["write_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 168, "context_tokens": 91233, "delta_tokens": 1237, "cache_read_tokens": 87583, "input_tokens": 1237, "output_tokens": 300, "tools": ["edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 171, "context_tokens": 92444, "delta_tokens": 1211, "cache_read_tokens": 88746, "input_tokens": 1211, "output_tokens": 300, "tools": ["write_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 174, "context_tokens": 93641, "delta_tokens": 1197, "cache_read_tokens": 89895, "input_tokens": 1197, "output_tokens": 300, "tools": ["edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 177, "context_tokens": 94836, "delta_tokens": 1195, "cache_read_tokens": 91042, "input_tokens": 1195, "output_tokens": 300, "tools": ["write_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 180, "context_tokens": 96042, "delta_tokens": 1206, "cache_read_tokens": 92200, "input_tokens": 1206, "output_tokens": 300, "tools": ["edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 183, "context_tokens": 97272, "delta_tokens": 1230, "cache_read_tokens": 93381, "input_tokens": 1230, "output_tokens": 300, "tools": ["write_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 186, "context_tokens": 98539, "delta_tokens": 1267, "cache_read_tokens": 94597, "input_tokens": 1267, "output_tokens": 300, "tools": ["edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 189, "context_tokens": 99857, "delta_tokens": 1318, "cache_read_tokens": 95862, "input_tokens": 1318, "output_tokens": 300, "tools": ["write_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 192, "context_tokens": 101238, "delta_tokens": 1381, "cache_read_tokens": 97188, "input_tokens": 1381, "output_tokens": 300, "tools": ["edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 195, "context_tokens": 102695, "delta_tokens": 1457, "cache_read_tokens": 98587, "input_tokens": 1457, "output_tokens": 300, "tools": ["write_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 198, "context_tokens": 104239, "delta_tokens": 1544, "cache_read_tokens": 100069, "input_tokens": 1544, "output_tokens": 300, "tools": ["edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 201, "context_tokens": 105879, "delta_tokens": 1640, "cache_read_tokens": 101643, "input_tokens": 1640, "output_tokens": 300, "tools": ["write_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 204, "context_tokens": 107624, "delta_tokens": 1745, "cache_read_tokens": 103319, "input_tokens": 1745, "output_tokens": 300, "tools": ["edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 207, "context_tokens": 109481, "delta_tokens": 1857, "cache_read_tokens": 105101, "input_tokens": 1857, "output_tokens": 300, "tools": ["write_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 210, "context_tokens": 111454, "delta_tokens": 1973, "cache_read_tokens": 106995, "input_tokens": 1973, "output_tokens": 300, "tools": ["edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 213, "context_tokens": 113546, "delta_tokens": 2092, "cache_read_tokens": 109004, "input_tokens": 2092, "output_tokens": 300, "tools": ["write_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 216, "context_tokens": 115758, "delta_tokens": 2212, "cache_read_tokens": 111127, "input_tokens": 2212, "output_tokens": 300, "tools": ["edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 219, "context_tokens": 118089, "delta_tokens": 2331, "cache_read_tokens": 113365, "input_tokens": 2331, "output_tokens": 300, "tools": ["write_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 222, "context_tokens": 120535, "delta_tokens": 2446, "cache_read_tokens": 115713, "input_tokens": 2446, "output_tokens": 300, "tools": ["edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 225, "context_tokens": 123092, "delta_tokens": 2557, "cache_read_tokens": 118168, "input_tokens": 2557, "output_tokens": 300, "tools": ["write_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 228, "context_tokens": 125752, "delta_tokens": 2660, "cache_read_tokens": 120721, "input_tokens": 2660, "output_tokens": 300, "tools": ["edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 231, "context_tokens": 128507, "delta_tokens": 2755, "cache_read_tokens": 123366, "input_tokens": 2755, "output_tokens": 300, "tools": ["write_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 234, "context_tokens": 131347, "delta_tokens": 2840, "cache_read_tokens": 126093, "input_tokens": 2840, "output_tokens": 300, "tools": ["edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 237, "context_tokens": 134261, "delta_tokens": 2914, "cache_read_tokens": 128890, "input_tokens": 2914, "output_tokens": 300, "tools": ["write_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 240, "context_tokens": 137237, "delta_tokens": 2976, "cache_read_tokens": 131747, "input_tokens": 2976, "output_tokens": 300, "tools": ["edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 243, "context_tokens": 140261, "delta_tokens": 3024, "cache_read_tokens": 134650, "input_tokens": 3024, "output_tokens": 300, "tools": ["write_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 246, "context_tokens": 143320, "delta_tokens": 3059, "cache_read_tokens": 137587, "input_tokens": 3059, "output_tokens": 300, "tools": ["edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 249, "context_tokens": 146401, "delta_tokens": 3081, "cache_read_tokens": 140544, "input_tokens": 3081, "output_tokens": 300, "tools": ["write_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 252, "context_tokens": 149491, "delta_tokens": 3090, "cache_read_tokens": 143511, "input_tokens": 3090, "output_tokens": 300, "tools": ["edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 255, "context_tokens": 152576, "delta_tokens": 3085, "cache_read_tokens": 146472, "input_tokens": 3085, "output_tokens": 300, "tools": ["write_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 258, "context_tokens": 155645, "delta_tokens": 3069, "cache_read_tokens": 149419, "input_tokens": 3069, "output_tokens": 300, "tools": ["edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 263, "context_tokens": 18500, "delta_tokens": 0, "cache_read_tokens": 0, "input_tokens": 18500, "output_tokens": 240, "tools": ["run_command"], "is_compaction": true, "compaction_drop": 137145}, {"step_index": 265, "context_tokens": 19450, "delta_tokens": 950, "cache_read_tokens": 18866, "input_tokens": 950, "output_tokens": 450, "tools": ["read_file", "edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 268, "context_tokens": 20486, "delta_tokens": 1036, "cache_read_tokens": 19871, "input_tokens": 1036, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 271, "context_tokens": 21603, "delta_tokens": 1117, "cache_read_tokens": 20954, "input_tokens": 1117, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 274, "context_tokens": 22791, "delta_tokens": 1188, "cache_read_tokens": 22107, "input_tokens": 1188, "output_tokens": 450, "tools": ["read_file", "edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 277, "context_tokens": 24035, "delta_tokens": 1244, "cache_read_tokens": 23313, "input_tokens": 1244, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 280, "context_tokens": 25317, "delta_tokens": 1282, "cache_read_tokens": 24557, "input_tokens": 1282, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 283, "context_tokens": 26616, "delta_tokens": 1299, "cache_read_tokens": 25817, "input_tokens": 1299, "output_tokens": 450, "tools": ["read_file", "edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 286, "context_tokens": 27910, "delta_tokens": 1294, "cache_read_tokens": 27072, "input_tokens": 1294, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 289, "context_tokens": 29178, "delta_tokens": 1268, "cache_read_tokens": 28302, "input_tokens": 1268, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 292, "context_tokens": 30400, "delta_tokens": 1222, "cache_read_tokens": 29488, "input_tokens": 1222, "output_tokens": 450, "tools": ["read_file", "edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 295, "context_tokens": 31559, "delta_tokens": 1159, "cache_read_tokens": 30612, "input_tokens": 1159, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 298, "context_tokens": 32642, "delta_tokens": 1083, "cache_read_tokens": 31662, "input_tokens": 1083, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 301, "context_tokens": 33641, "delta_tokens": 999, "cache_read_tokens": 32631, "input_tokens": 999, "output_tokens": 450, "tools": ["read_file", "edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 304, "context_tokens": 34553, "delta_tokens": 912, "cache_read_tokens": 33516, "input_tokens": 912, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 307, "context_tokens": 35380, "delta_tokens": 827, "cache_read_tokens": 34318, "input_tokens": 827, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 310, "context_tokens": 36129, "delta_tokens": 749, "cache_read_tokens": 35045, "input_tokens": 749, "output_tokens": 450, "tools": ["read_file", "edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 313, "context_tokens": 36814, "delta_tokens": 685, "cache_read_tokens": 35709, "input_tokens": 685, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 316, "context_tokens": 37450, "delta_tokens": 636, "cache_read_tokens": 36326, "input_tokens": 636, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 319, "context_tokens": 38057, "delta_tokens": 607, "cache_read_tokens": 36915, "input_tokens": 607, "output_tokens": 450, "tools": ["read_file", "edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 322, "context_tokens": 38657, "delta_tokens": 600, "cache_read_tokens": 37497, "input_tokens": 600, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 325, "context_tokens": 39271, "delta_tokens": 614, "cache_read_tokens": 38092, "input_tokens": 614, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 328, "context_tokens": 39920, "delta_tokens": 649, "cache_read_tokens": 38722, "input_tokens": 649, "output_tokens": 450, "tools": ["read_file", "edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 331, "context_tokens": 40623, "delta_tokens": 703, "cache_read_tokens": 39404, "input_tokens": 703, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 334, "context_tokens": 41395, "delta_tokens": 772, "cache_read_tokens": 40153, "input_tokens": 772, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 337, "context_tokens": 42247, "delta_tokens": 852, "cache_read_tokens": 40979, "input_tokens": 852, "output_tokens": 450, "tools": ["read_file", "edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 340, "context_tokens": 43185, "delta_tokens": 938, "cache_read_tokens": 41889, "input_tokens": 938, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 343, "context_tokens": 44210, "delta_tokens": 1025, "cache_read_tokens": 42883, "input_tokens": 1025, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 346, "context_tokens": 45317, "delta_tokens": 1107, "cache_read_tokens": 43957, "input_tokens": 1107, "output_tokens": 450, "tools": ["read_file", "edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 349, "context_tokens": 46496, "delta_tokens": 1179, "cache_read_tokens": 45101, "input_tokens": 1179, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 352, "context_tokens": 47734, "delta_tokens": 1238, "cache_read_tokens": 46301, "input_tokens": 1238, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 355, "context_tokens": 49012, "delta_tokens": 1278, "cache_read_tokens": 47541, "input_tokens": 1278, "output_tokens": 450, "tools": ["read_file", "edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 358, "context_tokens": 50310, "delta_tokens": 1298, "cache_read_tokens": 48800, "input_tokens": 1298, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 361, "context_tokens": 51606, "delta_tokens": 1296, "cache_read_tokens": 50057, "input_tokens": 1296, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 364, "context_tokens": 52878, "delta_tokens": 1272, "cache_read_tokens": 51291, "input_tokens": 1272, "output_tokens": 450, "tools": ["read_file", "edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 367, "context_tokens": 54107, "delta_tokens": 1229, "cache_read_tokens": 52483, "input_tokens": 1229, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 370, "context_tokens": 55275, "delta_tokens": 1168, "cache_read_tokens": 53616, "input_tokens": 1168, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 373, "context_tokens": 56369, "delta_tokens": 1094, "cache_read_tokens": 54677, "input_tokens": 1094, "output_tokens": 450, "tools": ["read_file", "edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 376, "context_tokens": 57379, "delta_tokens": 1010, "cache_read_tokens": 55657, "input_tokens": 1010, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 379, "context_tokens": 58302, "delta_tokens": 923, "cache_read_tokens": 56552, "input_tokens": 923, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 382, "context_tokens": 59140, "delta_tokens": 838, "cache_read_tokens": 57365, "input_tokens": 838, "output_tokens": 450, "tools": ["read_file", "edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 385, "context_tokens": 59899, "delta_tokens": 759, "cache_read_tokens": 58102, "input_tokens": 759, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 388, "context_tokens": 60591, "delta_tokens": 692, "cache_read_tokens": 58773, "input_tokens": 692, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 391, "context_tokens": 61233, "delta_tokens": 642, "cache_read_tokens": 59396, "input_tokens": 642, "output_tokens": 450, "tools": ["read_file", "edit_file"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 394, "context_tokens": 61843, "delta_tokens": 610, "cache_read_tokens": 59987, "input_tokens": 610, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}, {"step_index": 397, "context_tokens": 88640, "delta_tokens": 600, "cache_read_tokens": 60569, "input_tokens": 600, "output_tokens": 450, "tools": ["run_command"], "is_compaction": false, "compaction_drop": 0}], "all_conversations": [{"cid": "conv-core-001", "title": "构建实时上下文监控 Sidecar 插件", "project_name": "Core-Engine", "project_path": "C:\\Workspace\\Core-Engine", "last_modified": "2026-11-06 14:00:00", "last_user_input": "2026-11-06 14:00:00", "step_count": 398}, {"cid": "conv-core-002", "title": "重构底层 Token 解析与防抖算法", "project_name": "Core-Engine", "project_path": "C:\\Workspace\\Core-Engine", "last_modified": "2026-11-06 12:15:00", "last_user_input": "2026-11-06 12:15:00", "step_count": 142}, {"cid": "conv-cloud-001", "title": "分布式微服务通信性能调优", "project_name": "Cloud-Platform", "project_path": "D:\\Projects\\Cloud-Platform", "last_modified": "2026-11-05 18:30:00", "last_user_input": "2026-11-05 18:30:00", "step_count": 86}, {"cid": "conv-cloud-002", "title": "优化高并发 Redis 缓存连接池", "project_name": "Cloud-Platform", "project_path": "D:\\Projects\\Cloud-Platform", "last_modified": "2026-11-03 10:20:00", "last_user_input": "2026-11-03 10:20:00", "step_count": 54}, {"cid": "conv-devops-001", "title": "CI/CD 自动化流水线构建脚本", "project_name": "DevOps-Tools", "project_path": "E:\\DevOps\\Pipeline", "last_modified": "2026-11-01 16:45:00", "last_user_input": "2026-11-01 16:45:00", "step_count": 32}], "updated_at": "2026-11-06 14:00:00"};
+    localStorage.setItem('context_hud_locked_cid', 'conv-core-001');
+
+    window.addEventListener('DOMContentLoaded', () => {
+      cachedConversations = window.SANITY_DEMO_DATA.all_conversations;
+      selectedCid = 'conv-core-001';
+      trackedCid = 'conv-core-001';
+      renderDashboard(window.SANITY_DEMO_DATA);
+      renderConversationListUI();
+      updateLockBadge();
+      
+      const badge = document.getElementById('liveStatusBadge');
+      if (badge) {
+        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-ring"></span> 实时';
+      }
+      const headerBrief = document.getElementById('headerConvBrief');
+      if (headerBrief) {
+        headerBrief.innerText = "[Core-Engine] 构建实时上下文监控 Sidecar 插件";
+      }
+    });
+  </script>
+
+</head>
+<body class="h-screen w-screen overflow-hidden bg-[--bg-main] text-[--text-main] p-2 md:p-3 text-xs md:text-sm custom-scrollbar flex flex-col select-none">
+  <div class="flex-1 min-h-0 flex flex-col space-y-2 max-w-4xl mx-auto w-full overflow-hidden">
+
+    <!-- 顶部状态栏与模式切换 -->
+    <header class="flex items-center justify-between gap-2 pb-1.5 border-b border-gray-800 shrink-0">
+      <div class="flex items-center space-x-2 min-w-0">
+        <div class="w-7 h-7 shrink-0 rounded-lg bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400 font-bold shadow-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <div class="min-w-0">
+          <div class="flex items-center space-x-1.5">
+            <h1 class="text-xs md:text-sm font-bold text-gray-100 tracking-tight whitespace-nowrap">当前上下文</h1>
+            <span id="liveStatusBadge" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 whitespace-nowrap">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-ring"></span>
+              实时
+            </span>
+          </div>
+          <!-- 顶部简报：当前选定会话名称与状态 -->
+          <div class="flex items-center gap-1.5 text-[11px] text-gray-400 truncate mt-0.5">
+            <span id="headerLockIcon" class="text-[10px] text-sky-400 font-mono">⚡</span>
+            <span id="headerConvBrief" class="text-gray-300 font-medium truncate max-w-[200px] sm:max-w-xs">正在检测活跃会话...</span>
+          </div>
+          <span id="convSubTitle" class="hidden"></span>
+        </div>
+      </div>
+
+      <!-- 右侧控制区：视图切换 + 重启 + 轮询开关 + 刷新 -->
+      <div class="flex items-center space-x-1.5 shrink-0">
+        <!-- 重启服务按钮 -->
+        <button id="restartBtn" title="重启服务进程并强制刷新到最新版本" class="flex items-center space-x-1 px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded text-[11px] font-medium transition-all active:scale-95">
+          <svg id="restartIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          <span id="restartBtnText" class="hidden sm:inline">重启服务</span>
+        </button>
+
+        <!-- 紧凑 / 完整 切换按钮 -->
+        <button id="viewToggleBtn" class="flex items-center space-x-1 px-2 py-1 bg-gray-800/90 hover:bg-gray-700 text-gray-300 rounded text-[11px] border border-gray-700 transition-colors" title="切换极简/全景视图">
+          <span id="viewToggleIcon">📱</span>
+          <span id="viewToggleText" class="hidden sm:inline">极简模式</span>
+        </button>
+
+        <label class="flex items-center space-x-1 cursor-pointer bg-gray-800/80 hover:bg-gray-800 px-1.5 py-1 rounded border border-gray-700/60 text-[11px] transition-colors" title="2秒自动轮询最新会话状态">
+          <input type="checkbox" id="autoRefreshToggle" checked class="rounded border-gray-600 text-sky-500 focus:ring-0 w-3 h-3 bg-gray-900 cursor-pointer">
+          <span class="text-gray-300 hidden md:inline">自动</span>
+        </label>
+
+        <button id="manualRefreshBtn" title="立即刷新" class="p-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded text-gray-300 hover:text-white transition-all active:scale-95">
+          <svg id="refreshIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- 🌟 核心卡片 1：直觉化 Hero 仪表盘 (256k 窗口基准) -->
+    <div class="bg-gray-900/90 border border-gray-800 rounded-xl p-2.5 shadow-xl relative overflow-hidden shrink-0">
+      <!-- 顶部摘要行：大号百分比 + 核心用量与缓存率 -->
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex items-baseline space-x-2">
+          <span id="heroOccupancyVal" class="text-3xl md:text-4xl font-extrabold tracking-tight text-white">0.0%</span>
+        </div>
+        <div class="text-right space-y-0.5">
+          <div class="text-xs font-mono text-gray-200" id="heroTokensSummary">0 / 256k Tokens</div>
+          <div id="cacheHitSummary" class="text-[11px] font-mono text-teal-400">缓存率: 0.0%</div>
+        </div>
+      </div>
+
+      <!-- 🌈 三段式横向堆叠条 (Stacked Composition Bar) -->
+      <div class="mt-2">
+        <div class="w-full bg-gray-800 rounded-full h-2.5 overflow-hidden flex p-0.5 border border-gray-700/70 shadow-inner">
+          <!-- 1. 系统/工具基线 (蓝色) -->
+          <div id="barBaseline" class="h-full bg-indigo-500 transition-all duration-500 rounded-l-full" style="width: 0%" title="系统基线"></div>
+          <!-- 2. 交互增量 (紫色/青色) -->
+          <div id="barGrowth" class="h-full bg-gradient-to-r from-sky-400 to-teal-400 transition-all duration-500" style="width: 0%" title="对话累加"></div>
+          <!-- 3. 剩余空间 (深灰) -->
+          <div id="barFree" class="h-full bg-gray-800/80 transition-all duration-500 rounded-r-full" style="width: 100%" title="剩余可用"></div>
+        </div>
+
+        <!-- 堆叠图图例说明 -->
+        <div class="flex justify-between items-center text-[10px] text-gray-400 mt-1 px-0.5">
+          <div class="flex items-center gap-1">
+            <span class="w-2 h-2 rounded-sm bg-indigo-500"></span>
+            <span>基线: <b id="legendBaselineVal" class="text-gray-300 font-normal">0</b></span>
+          </div>
+          <div class="flex items-center gap-1">
+            <span class="w-2 h-2 rounded-sm bg-sky-400"></span>
+            <span>对话: <b id="legendGrowthVal" class="text-gray-300 font-normal">0</b></span>
+          </div>
+          <div class="flex items-center gap-1">
+            <span class="w-2 h-2 rounded-sm bg-gray-600"></span>
+            <span>剩余: <b id="legendFreeVal" class="text-gray-300 font-normal">100%</b></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 📊 详细区域 (在极简模式下隐藏，flex-1 弹性填充并限制滚动) -->
+    <div id="detailedSection" class="flex-1 min-h-0 flex flex-col space-y-2 transition-all duration-300 overflow-hidden">
+
+      <!-- 核心卡片 2：上下文走势图 (拉高振幅空间 + 平滑单线 + 压缩事件标注) -->
+      <div class="bg-gray-900/90 border border-gray-800 rounded-xl p-2.5 shadow-md space-y-1.5 shrink-0">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-1.5">
+            <span class="text-xs font-semibold text-gray-200">上下文走势</span>
+            <span id="chartRangeLabel" class="text-[10px] text-gray-500">(全量步骤)</span>
+          </div>
+          <div class="flex items-center space-x-2.5 text-[10px] text-gray-400">
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-sky-400"></span> 上下文总量</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-purple-400"></span> 压缩事件</span>
+          </div>
+        </div>
+
+        <!-- 走势图增高展示，内部空间充裕且舒展 -->
+        <div id="chartContainer" class="relative w-full h-52 md:h-60 bg-gray-950/70 rounded-lg border border-gray-800/80 p-2 overflow-hidden flex items-center justify-center">
+          <svg id="trendSvg" class="w-full h-full block"></svg>
+          <div id="chartTooltip" class="absolute hidden px-2.5 py-1.5 bg-gray-900/95 text-gray-200 text-[10px] rounded-lg border border-gray-700 shadow-2xl pointer-events-none transition-opacity z-20 backdrop-blur-sm"></div>
+          <div id="emptyChartText" class="text-gray-500 text-xs hidden">暂无多轮交互步骤数据</div>
+        </div>
+
+        <div class="flex justify-between items-center text-[10px] text-gray-500 font-mono px-1">
+          <span id="chartLabelStart">Step 1</span>
+          <span id="chartLabelMid">持续演进</span>
+          <span id="chartLabelEnd">当前最新</span>
+        </div>
+      </div>
+
+      <!-- 核心卡片 3：极简运行元数据单行 -->
+      <div class="bg-gray-900/60 border border-gray-800 rounded-lg px-3 py-1 text-[11px] text-gray-400 font-mono flex flex-wrap items-center justify-between gap-2 shrink-0">
+        <span>模型: <b id="metaModelName" class="text-gray-200 font-normal">Gemini 3.8</b></span>
+        <span>轮次: <b id="metaStepsCount" class="text-purple-400 font-normal">0 步</b></span>
+        <span>本轮输出: <b id="metaLatestOutput" class="text-indigo-400 font-normal">0</b></span>
+        <span>单步新增: <b id="metaUncachedPart" class="text-sky-400 font-normal">+0</b></span>
+      </div>
+
+      <!-- 核心卡片 4：会话列表选择框 (采用卡片内列表模式 · 放置在走势图下方 · 按项目分类与排序) -->
+      <div class="bg-gray-900/90 border border-gray-800 rounded-xl p-2.5 shadow-md flex-1 min-h-0 flex flex-col space-y-1.5 overflow-hidden">
+        <div class="flex items-center justify-between shrink-0">
+          <div class="flex items-center space-x-1.5">
+            <span class="text-xs font-semibold text-gray-200">会话选择</span>
+            <span id="projectCountBadge" class="text-[10px] text-gray-500 font-mono">(按项目分类)</span>
+          </div>
+          <!-- 左右滑动的可视化切换按钮 (Sliding Segmented Toggle) -->
+          <div id="followLockSwitch" class="relative flex items-center bg-gray-950 p-0.5 rounded-lg border border-gray-700/80 cursor-pointer select-none shadow-inner" title="点击或滑动切换：⚡ 自动跟随最新活跃会话 或 📌 锁定当前会话">
+            <!-- 左右滑动的色块指示药丸 (Sliding Indicator) -->
+            <div id="switchThumb" class="absolute top-0.5 bottom-0.5 left-0.5 w-[calc(50%-2px)] rounded-md transition-all duration-200 ease-out shadow-sm pointer-events-none"></div>
+
+            <!-- 左选项：自动跟随 -->
+            <button type="button" id="switchOptAuto" class="relative z-10 px-2 py-0.5 text-[10px] font-medium transition-colors flex items-center gap-1 focus:outline-none">
+              <span>⚡</span>
+              <span>自动跟随</span>
+            </button>
+
+            <!-- 右选项：已锁定 -->
+            <button type="button" id="switchOptLock" class="relative z-10 px-2 py-0.5 text-[10px] font-medium transition-colors flex items-center gap-1 focus:outline-none">
+              <span>📌</span>
+              <span>已锁定</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 项目快捷筛选 Tab Chips (水平平滑滚动) -->
+        <div id="projectFilterTabs" class="flex items-center gap-1 overflow-x-auto custom-scrollbar shrink-0 pb-1 text-[10px]"></div>
+
+        <!-- 内部可滚动会话列表 (仅局部滚动，外部页面严格无滑动条) -->
+        <div id="convListScrollContainer" class="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-2 pr-1">
+          <!-- 动态按项目与时间排序渲染会话列表条目 -->
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- 页脚状态 -->
+  <footer class="pt-1.5 border-t border-gray-800/60 text-[10px] text-gray-500 flex justify-between items-center max-w-4xl mx-auto w-full shrink-0">
+    <span>Antigravity Context HUD v1.1</span>
+    <span id="lastUpdatedTime">--:--:--</span>
+  </footer>
+
+  <!-- 🌟 自定义重启确认弹窗 (Custom Confirmation Modal) -->
+  <div id="restartModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-200">
+    <div class="bg-gray-900 border border-gray-700/90 rounded-xl p-5 max-w-sm w-full shadow-2xl space-y-4 transform scale-95 transition-transform duration-200" id="restartModalCard">
+      <div class="flex items-start space-x-3">
+        <div class="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <div class="flex-1">
+          <h3 class="text-sm font-bold text-gray-100">确认重启服务并更新版本？</h3>
+          <p class="text-xs text-gray-400 mt-1 leading-relaxed">
+            将重启后台服务进程，加载最新前端代码并强制清除缓存。
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end space-x-2 pt-2 border-t border-gray-800">
+        <button id="cancelRestartBtn" class="px-3.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-medium border border-gray-700 transition-colors">
+          取消
+        </button>
+        <button id="confirmRestartBtn" class="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-gray-950 text-xs font-bold transition-all shadow-md active:scale-95 flex items-center space-x-1">
+          <span>确认重启</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let pollTimer = null;
+    let selectedCid = localStorage.getItem('context_hud_locked_cid') || "";
+    let trackedCid = "";
+    let isFetching = false;
+    let isCompactView = localStorage.getItem('context_hud_compact') === 'true';
+    let cachedConversations = [];
+    let activeFilterProject = "ALL";
+
+    function escapeHtml(str) {
+      if (!str) return "";
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function formatNum(num) {
+      if (num === undefined || num === null) return "0";
+      return Number(num).toLocaleString('en-US');
+    }
+
+    function formatK(num) {
+      if (!num) return "0";
+      if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
+      if (num >= 1000) return (num / 1000).toFixed(1) + "k";
+      return num;
+    }
+
+    function timeAgo(dateInput) {
+      if (!dateInput) return "";
+      try {
+        const d = new Date(dateInput);
+        if (isNaN(d.getTime())) return "";
+        const now = new Date();
+        const diffSec = Math.floor((now - d) / 1000);
+        if (diffSec < 60) return "刚刚";
+        if (diffSec < 3600) return `${Math.floor(diffSec / 60)}分钟前`;
+        if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}小时前`;
+        if (diffSec < 86400 * 2) return "昨天";
+        if (diffSec < 86400 * 7) return `${Math.floor(diffSec / 86400)}天前`;
+        return `${d.getMonth() + 1}-${d.getDate()}`;
+      } catch (e) {
+        return "";
+      }
+    }
+
+    // 更新左右滑动的可视化按钮状态与滑块位置
+    function updateLockBadge() {
+      const thumb = document.getElementById('switchThumb');
+      const optAuto = document.getElementById('switchOptAuto');
+      const optLock = document.getElementById('switchOptLock');
+      const headerIcon = document.getElementById('headerLockIcon');
+
+      if (!thumb || !optAuto || !optLock) return;
+
+      if (selectedCid) {
+        // 状态：已锁定 -> 滑块平滑右移 (琥珀金/天蓝微光)
+        thumb.style.transform = 'translateX(100%)';
+        thumb.className = "absolute top-0.5 bottom-0.5 left-0.5 w-[calc(50%-2px)] rounded-md transition-transform duration-200 ease-out bg-sky-500/20 border border-sky-400/50 shadow-[0_0_8px_rgba(56,189,248,0.25)] pointer-events-none";
+        optAuto.className = "relative z-10 px-2 py-0.5 text-[10px] font-normal transition-colors flex items-center gap-1 text-gray-500 hover:text-gray-300 focus:outline-none";
+        optLock.className = "relative z-10 px-2 py-0.5 text-[10px] font-semibold transition-colors flex items-center gap-1 text-sky-200 focus:outline-none";
+        if (headerIcon) headerIcon.innerText = "📌";
+      } else {
+        // 状态：自动跟随 -> 滑块平滑归左
+        thumb.style.transform = 'translateX(0%)';
+        thumb.className = "absolute top-0.5 bottom-0.5 left-0.5 w-[calc(50%-2px)] rounded-md transition-transform duration-200 ease-out bg-emerald-500/15 border border-emerald-400/40 shadow-[0_0_8px_rgba(52,211,153,0.2)] pointer-events-none";
+        optAuto.className = "relative z-10 px-2 py-0.5 text-[10px] font-semibold transition-colors flex items-center gap-1 text-emerald-300 focus:outline-none";
+        optLock.className = "relative z-10 px-2 py-0.5 text-[10px] font-normal transition-colors flex items-center gap-1 text-gray-500 hover:text-gray-300 focus:outline-none";
+        if (headerIcon) headerIcon.innerText = "⚡";
+      }
+    }
+
+    // 切换极简模式 / 详细模式
+    function toggleViewMode() {
+      isCompactView = !isCompactView;
+      localStorage.setItem('context_hud_compact', isCompactView);
+      applyViewMode();
+    }
+
+    function applyViewMode() {
+      const detailedSec = document.getElementById('detailedSection');
+      const toggleBtnText = document.getElementById('viewToggleText');
+      const toggleIcon = document.getElementById('viewToggleIcon');
+
+      if (isCompactView) {
+        detailedSec.classList.add('hidden');
+        toggleBtnText.innerText = "展开全景";
+        toggleIcon.innerText = "📊";
+      } else {
+        detailedSec.classList.remove('hidden');
+        toggleBtnText.innerText = "极简模式";
+        toggleIcon.innerText = "📱";
+      }
+    }
+
+    // 渲染会话列表 (卡片内列表模式 · 按项目分类与排序)
+    function renderConversationListUI() {
+      const countBadge = document.getElementById('projectCountBadge');
+      const filterTabsEl = document.getElementById('projectFilterTabs');
+      const listContainerEl = document.getElementById('convListScrollContainer');
+      if (!listContainerEl) return;
+
+      const conversations = cachedConversations || [];
+      if (conversations.length === 0) {
+        listContainerEl.innerHTML = '<div class="text-gray-500 text-center py-4 text-xs">暂无历史会话</div>';
+        return;
+      }
+
+      // 1. 按照项目进行分组归类
+      const projectGroups = {};
+      conversations.forEach(c => {
+        const pName = c.project_name || '未绑定项目';
+        if (!projectGroups[pName]) {
+          projectGroups[pName] = {
+            name: pName,
+            path: c.project_path || '',
+            conversations: [],
+            maxTimestamp: 0
+          };
+        }
+        projectGroups[pName].conversations.push(c);
+        
+        const rawTime = c.last_user_input || c.last_modified;
+        const tVal = rawTime ? new Date(rawTime).getTime() : 0;
+        if (tVal > projectGroups[pName].maxTimestamp) {
+          projectGroups[pName].maxTimestamp = tVal;
+        }
+      });
+
+      // 2. 识别当前所属项目 (优先当前选定会话或第一条活跃会话所在项目)
+      let activeProjName = '';
+      if (selectedCid) {
+        const found = conversations.find(c => c.cid === selectedCid);
+        if (found) activeProjName = found.project_name;
+      }
+      if (!activeProjName && trackedCid) {
+        const found = conversations.find(c => c.cid === trackedCid);
+        if (found) activeProjName = found.project_name;
+      }
+      if (!activeProjName && conversations.length > 0) {
+        activeProjName = conversations[0].project_name;
+      }
+
+      // 3. 项目排序：当前项目置顶，其余项目按最新交互时间倒序，未绑定项目置底
+      const sortedProjects = Object.values(projectGroups).sort((a, b) => {
+        if (a.name === activeProjName) return -1;
+        if (b.name === activeProjName) return 1;
+        if (a.name === '未绑定项目') return 1;
+        if (b.name === '未绑定项目') return -1;
+        return b.maxTimestamp - a.maxTimestamp;
+      });
+
+      // 每个项目内部的会话：按用户交互时间/修改时间倒序排列
+      sortedProjects.forEach(proj => {
+        proj.conversations.sort((a, b) => {
+          const ta = new Date(a.last_user_input || a.last_modified || 0).getTime();
+          const tb = new Date(b.last_user_input || b.last_modified || 0).getTime();
+          return tb - ta;
+        });
+      });
+
+      if (countBadge) {
+        countBadge.innerText = `(${sortedProjects.length}个项目 · ${conversations.length}个会话)`;
+      }
+
+      // 4. 渲染项目快捷筛选 Tab Chips
+      if (filterTabsEl) {
+        let tabsHtml = `
+          <button class="project-tab px-2 py-0.5 rounded text-[10px] font-medium transition-colors shrink-0 ${activeFilterProject === 'ALL' ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40' : 'bg-gray-800/80 text-gray-400 hover:text-gray-200 border border-gray-700/60'}" data-pname="ALL">
+            全部 (${conversations.length})
+          </button>
+        `;
+        sortedProjects.forEach(proj => {
+          const isCurrentTag = (proj.name === activeProjName) ? ' (当前)' : '';
+          const isSelected = (activeFilterProject === proj.name);
+          tabsHtml += `
+            <button class="project-tab px-2 py-0.5 rounded text-[10px] font-medium transition-colors shrink-0 whitespace-nowrap ${isSelected ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40' : 'bg-gray-800/80 text-gray-400 hover:text-gray-200 border border-gray-700/60'}" data-pname="${escapeHtml(proj.name)}">
+              ${escapeHtml(proj.name)}${isCurrentTag} (${proj.conversations.length})
+            </button>
+          `;
+        });
+        filterTabsEl.innerHTML = tabsHtml;
+
+        // 绑定 Tab 点击事件
+        filterTabsEl.querySelectorAll('.project-tab').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const pname = btn.getAttribute('data-pname');
+            activeFilterProject = pname;
+            renderConversationListUI();
+          });
+        });
+      }
+
+      // 5. 渲染列表项
+      const targetProjects = (activeFilterProject === 'ALL') 
+        ? sortedProjects 
+        : sortedProjects.filter(p => p.name === activeFilterProject);
+
+      let listHtml = '';
+      targetProjects.forEach(proj => {
+        const isCurrentProj = (proj.name === activeProjName);
+        listHtml += `
+          <div class="space-y-1">
+            <div class="flex items-center justify-between px-1 py-0.5 text-[10px] text-gray-400 font-mono">
+              <span class="flex items-center gap-1 font-semibold ${isCurrentProj ? 'text-sky-400' : 'text-gray-400'}">
+                📂 ${escapeHtml(proj.name)}${isCurrentProj ? ' (当前项目)' : ''}
+              </span>
+              <span class="text-gray-500 text-[9px]">${proj.conversations.length} 个会话</span>
+            </div>
+            <div class="space-y-1">
+        `;
+
+        proj.conversations.forEach(c => {
+          const isMonitored = (selectedCid && c.cid === selectedCid) || (!selectedCid && c.cid === trackedCid);
+          const timeDesc = timeAgo(c.last_user_input || c.last_modified);
+          
+          listHtml += `
+            <div class="conv-row group p-1.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-2 select-none ${isMonitored ? 'border-sky-500/60 bg-sky-500/15 text-sky-200 shadow-sm ring-1 ring-sky-500/20' : 'border-gray-800/80 bg-gray-950/60 hover:bg-gray-800/70 hover:border-gray-700 text-gray-300'}" data-cid="${c.cid}">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1.5">
+                  <span class="w-1.5 h-1.5 rounded-full ${isMonitored ? 'bg-sky-400 animate-pulse' : 'bg-gray-600 group-hover:bg-gray-400'} shrink-0"></span>
+                  <span class="text-xs font-medium truncate ${isMonitored ? 'text-sky-200 font-semibold' : 'text-gray-200'}">${escapeHtml(c.title)}</span>
+                  ${isMonitored ? '<span class="text-[9px] px-1 py-0.2 rounded bg-sky-500/20 text-sky-300 font-mono shrink-0">当前监控</span>' : ''}
+                </div>
+                <div class="text-[10px] text-gray-500 font-mono mt-0.5 truncate flex items-center gap-1">
+                  <span>${escapeHtml(c.project_path || c.project_name || '')}</span>
+                </div>
+              </div>
+              <div class="text-right shrink-0 flex flex-col items-end gap-0.5">
+                <span class="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/10 text-purple-400 font-mono">${c.step_count || 0} 步</span>
+                <span class="text-[10px] text-gray-400 font-mono">${timeDesc || '--'}</span>
+              </div>
+            </div>
+          `;
+        });
+
+        listHtml += `
+            </div>
+          </div>
+        `;
+      });
+
+      listContainerEl.innerHTML = listHtml;
+
+      // 为每一行会话卡片绑定一键点击切换与锁定交互
+      listContainerEl.querySelectorAll('.conv-row').forEach(row => {
+        row.addEventListener('click', () => {
+          const cid = row.getAttribute('data-cid');
+          if (cid) {
+            selectedCid = cid;
+            localStorage.setItem('context_hud_locked_cid', selectedCid);
+            updateLockBadge();
+            renderConversationListUI();
+            fetchContextData();
+          }
+        });
+      });
+    }
+
+    async function loadConversations() {
+      try {
+        const res = await fetch('/api/conversations');
+        if (!res.ok) return;
+        const data = await res.json();
+        cachedConversations = data.conversations || [];
+        renderConversationListUI();
+        updateLockBadge();
+      } catch (e) {
+        console.error("加载并分类会话列表异常:", e);
+      }
+    }
+
+    async function fetchContextData() {
+      if (isFetching) return;
+      isFetching = true;
+      const refreshIcon = document.getElementById('refreshIcon');
+      refreshIcon.classList.add('animate-spin');
+
+      try {
+        let url = '/api/active-context';
+        if (selectedCid) {
+          url += `?cid=${encodeURIComponent(selectedCid)}`;
+        } else if (trackedCid) {
+          url += `?tracked_cid=${encodeURIComponent(trackedCid)}`;
+        }
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("API 响应失败");
+        const data = await res.json();
+        if (data.success) {
+          renderDashboard(data);
+        } else {
+          const brief = document.getElementById('headerConvBrief');
+          if (brief) brief.innerText = data.error || "未能获取上下文数据";
+        }
+      } catch (err) {
+        const brief = document.getElementById('headerConvBrief');
+        if (brief) brief.innerText = "服务连接中断，正在重试...";
+      } finally {
+        isFetching = false;
+        setTimeout(() => refreshIcon.classList.remove('animate-spin'), 300);
+      }
+    }
+
+    function renderDashboard(data) {
+      const conv = data.conversation || {};
+      const ctx = data.context || {};
+      const model = data.model || {};
+      const health = ctx.health || {};
+      const speed = ctx.speed_grade || {};
+      const stacked = ctx.stacked_composition || {};
+
+      trackedCid = conv.cid || trackedCid;
+
+      // 顶部标题与选择框同步
+      const convLabel = `[${conv.project_name || '未绑定'}] ${conv.title || '当前会话'}`;
+      const headerBrief = document.getElementById('headerConvBrief');
+      if (headerBrief) {
+        headerBrief.innerText = convLabel;
+        headerBrief.title = conv.title || '';
+      }
+
+      // 下方卡片内的当前选中会话详细指标
+      const actProj = document.getElementById('convActiveProject');
+      const actPath = document.getElementById('convActivePath');
+      const actSteps = document.getElementById('convActiveSteps');
+      const actTime = document.getElementById('convActiveTime');
+
+      if (actProj) actProj.innerText = conv.project_name || '未绑定项目';
+      if (actPath) {
+        actPath.innerText = conv.project_path || '无本地路径';
+        actPath.title = conv.project_path || '';
+      }
+      if (actSteps) actSteps.innerText = `${ctx.total_steps || conv.step_count || 0} 步`;
+      if (actTime) actTime.innerText = timeAgo(conv.last_user_input || conv.last_modified) || '活跃中';
+
+      updateLockBadge();
+
+      // Hero 大号指标 (256k 窗口基准)
+      const ratio = ctx.occupancy_ratio || 0;
+      document.getElementById('heroOccupancyVal').innerText = `${ratio}%`;
+      document.getElementById('heroTokensSummary').innerText = `${formatK(ctx.current_tokens)} / ${model.limit_display || '256k'} Tokens`;
+      document.getElementById('cacheHitSummary').innerText = `缓存率: ${ctx.cache_hit_ratio}%`;
+
+      // 三段式横向堆叠条渲染
+      document.getElementById('barBaseline').style.width = `${stacked.baseline_pct || 0}%`;
+      document.getElementById('barGrowth').style.width = `${stacked.growth_pct || 0}%`;
+      document.getElementById('barFree').style.width = `${stacked.free_pct || 100}%`;
+
+      document.getElementById('legendBaselineVal').innerText = `${formatK(ctx.baseline_system_tokens)}`;
+      document.getElementById('legendGrowthVal').innerText = `${formatK(ctx.growth_tokens)}`;
+      document.getElementById('legendFreeVal').innerText = `${formatK(ctx.remaining_tokens)}`;
+
+      // 渲染单行运行元数据
+      document.getElementById('metaModelName').innerText = model.name || "Gemini 3.8";
+      document.getElementById('metaStepsCount').innerText = `${ctx.total_steps} 步`;
+      document.getElementById('metaLatestOutput').innerText = formatNum(ctx.latest_output);
+      document.getElementById('metaUncachedPart').innerText = `+${formatNum(ctx.latest_uncached_input)}`;
+
+      // 绘制走势图
+      renderStepChart(data.step_history || []);
+
+      // 同步刷新下方会话列表激活项
+      if (cachedConversations && cachedConversations.length > 0) {
+        renderConversationListUI();
+      }
+
+      document.getElementById('lastUpdatedTime').innerText = data.updated_at || new Date().toLocaleTimeString();
+    }
+
+    let cachedStepHistory = [];
+
+    // 绘制 SVG 全量上下文走势图 (1:1 物理像素完美映射 · 彻底消除压扁变形 · 增高内部视觉空间)
+    function renderStepChart(history) {
+      if (history) cachedStepHistory = history;
+      const dataHistory = history || cachedStepHistory;
+
+      const svg = document.getElementById('trendSvg');
+      const emptyText = document.getElementById('emptyChartText');
+      const tooltip = document.getElementById('chartTooltip');
+      const container = document.getElementById('chartContainer');
+
+      if (!dataHistory || dataHistory.length < 2) {
+        svg.innerHTML = '';
+        emptyText.classList.remove('hidden');
+        return;
+      }
+      emptyText.classList.add('hidden');
+
+      // 动态读取容器当前的物理像素尺寸，1:1 映射坐标系，彻底杜绝圆点和文字变形
+      const rect = container.getBoundingClientRect();
+      const W = Math.max(280, Math.round(rect.width) || 520);
+      const H = Math.max(160, Math.round(rect.height) || 210);
+
+      svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+      svg.removeAttribute('preserveAspectRatio');
+
+      const padLeft = 48;   // 预留 48px 清晰展示 Y 轴数值刻度，避免重叠
+      const padRight = 18;
+      const padTop = 24;    // 预留 24px 给顶部刻度与压缩标签
+      const padBottom = 22;
+
+      const chartW = W - padLeft - padRight;
+      const chartH = H - padTop - padBottom;
+
+      const maxRaw = Math.max(...dataHistory.map(d => d.context_tokens || 0), 1000);
+      const maxVal = Math.ceil(maxRaw * 1.06);
+      const minVal = 0;
+
+      const ptsContext = [];
+
+      dataHistory.forEach((d, i) => {
+        const x = padLeft + (i / (dataHistory.length - 1)) * chartW;
+        const yCtx = H - padBottom - ((d.context_tokens - minVal) / (maxVal - minVal)) * chartH;
+        ptsContext.push({
+          x,
+          y: yCtx,
+          data: d,
+          isCompaction: Boolean(d.is_compaction)
+        });
+      });
+
+      // 路径与阴影面积
+      const dContext = ptsContext.map((p, i) => (i === 0 ? `M ${p.x.toFixed(1)} ${p.y.toFixed(1)}` : `L ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)).join(' ');
+      const dArea = `${dContext} L ${ptsContext[ptsContext.length - 1].x.toFixed(1)} ${H - padBottom} L ${ptsContext[0].x.toFixed(1)} ${H - padBottom} Z`;
+
+      const yTop = padTop;
+      const yMid = padTop + chartH * 0.5;
+      const yBottom = H - padBottom;
+
+      let svgHtml = `
+        <defs>
+          <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.28" />
+            <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.02" />
+          </linearGradient>
+        </defs>
+
+        <!-- Y 轴刻度文字与网格基准虚线 (1:1 正圆与正体文字，绝对不压扁) -->
+        <text x="${padLeft - 8}" y="${yTop + 4}" text-anchor="end" class="text-[10px] fill-gray-500 font-mono select-none">${formatK(maxVal)}</text>
+        <line x1="${padLeft}" y1="${yTop}" x2="${W - padRight}" y2="${yTop}" stroke="#1f2937" stroke-width="0.8" stroke-dasharray="3,3" />
+
+        <text x="${padLeft - 8}" y="${yMid + 4}" text-anchor="end" class="text-[10px] fill-gray-500 font-mono select-none">${formatK(Math.round(maxVal / 2))}</text>
+        <line x1="${padLeft}" y1="${yMid}" x2="${W - padRight}" y2="${yMid}" stroke="#1f2937" stroke-width="0.8" stroke-dasharray="3,3" />
+
+        <text x="${padLeft - 8}" y="${yBottom + 4}" text-anchor="end" class="text-[10px] fill-gray-500 font-mono select-none">0</text>
+        <line x1="${padLeft}" y1="${yBottom}" x2="${W - padRight}" y2="${yBottom}" stroke="#374151" stroke-width="1" />
+
+        <!-- 全周期渐变阴影面积 -->
+        <path d="${dArea}" fill="url(#areaGrad)" />
+
+        <!-- 全量上下文主走势曲线 (单线平滑，展示完整历史生命周期) -->
+        <path d="${dContext}" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+      `;
+
+      // 绘制关键锚点与压缩事件标注 (纯正正圆，比例端正)
+      ptsContext.forEach((p, idx) => {
+        // 1. 压缩瘦身事件标注
+        if (p.isCompaction) {
+          svgHtml += `
+            <line x1="${p.x.toFixed(1)}" y1="${padTop - 4}" x2="${p.x.toFixed(1)}" y2="${yBottom}" stroke="#c084fc" stroke-width="1.2" stroke-dasharray="3,2" />
+            <rect x="${(p.x - 28).toFixed(1)}" y="${padTop - 14}" width="56" height="15" rx="3" fill="#3b0764" stroke="#a855f7" stroke-width="0.8" />
+            <text x="${p.x.toFixed(1)}" y="${padTop - 3}" text-anchor="middle" class="text-[9px] fill-purple-200 font-sans font-bold select-none pointer-events-none">📉 压缩精简</text>
+            <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4.5" fill="#a855f7" stroke="#ffffff" stroke-width="1.5" />
+          `;
+          return;
+        }
+
+        // 2. 首尾与节点：点数少于等于 40 步时绘制普通节点；高密度时仅绘制起点和终点
+        if (idx === 0) {
+          svgHtml += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="#0f172a" stroke="#64748b" stroke-width="1.2" />`;
+        } else if (idx === ptsContext.length - 1) {
+          svgHtml += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="#38bdf8" stroke="#ffffff" stroke-width="2" />`;
+        } else if (dataHistory.length <= 40) {
+          svgHtml += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.5" fill="#0f172a" stroke="#64748b" stroke-width="1.2" />`;
+        }
+      });
+
+      // 悬停十字准星导向线与吸附光点
+      svgHtml += `
+        <g id="scrubberGroup" style="display: none; pointer-events: none;">
+          <line id="scrubberLine" x1="0" y1="${padTop - 4}" x2="0" y2="${yBottom}" stroke="#38bdf8" stroke-width="1" stroke-dasharray="3,2" />
+          <circle id="scrubberHalo" cx="0" cy="0" r="8" fill="#38bdf8" fill-opacity="0.25" />
+          <circle id="scrubberDot" cx="0" cy="0" r="4" fill="#38bdf8" stroke="#ffffff" stroke-width="1.5" />
+        </g>
+        <!-- 鼠标交互响应透明层覆盖整个绘图区 -->
+        <rect id="chartOverlay" x="${padLeft}" y="${padTop}" width="${chartW}" height="${chartH}" fill="transparent" class="cursor-crosshair" />
+      `;
+
+      svg.innerHTML = svgHtml;
+
+      // 顶部标题范围与底部刻度数值说明
+      const firstStep = dataHistory[0];
+      const lastStep = dataHistory[dataHistory.length - 1];
+      const rangeEl = document.getElementById('chartRangeLabel');
+      if (rangeEl) {
+        rangeEl.innerText = `(全量步骤 · 共 ${dataHistory.length} 步)`;
+      }
+      document.getElementById('chartLabelStart').innerHTML = `Step ${firstStep.step_index} <b class="text-sky-400 font-mono font-medium">(${formatK(firstStep.context_tokens)})</b>`;
+      document.getElementById('chartLabelEnd').innerHTML = `Step ${lastStep.step_index} <b class="text-sky-400 font-mono font-bold">(${formatK(lastStep.context_tokens)})</b>`;
+      document.getElementById('chartLabelMid').innerHTML = `<span class="text-gray-400 font-sans">全景生命周期 (共 ${dataHistory.length} 轮)</span>`;
+
+      // 十字准星与全域平滑吸附探针交互 (1:1 像素定位，零误差吸附)
+      const overlay = svg.querySelector('#chartOverlay');
+      const scrubberGroup = svg.querySelector('#scrubberGroup');
+      const scrubberLine = svg.querySelector('#scrubberLine');
+      const scrubberHalo = svg.querySelector('#scrubberHalo');
+      const scrubberDot = svg.querySelector('#scrubberDot');
+
+      function updateProbe(clientX) {
+        const svgBox = svg.getBoundingClientRect();
+        const containerBox = container.getBoundingClientRect();
+        const mouseX = clientX - svgBox.left;
+        const ratio = Math.max(0, Math.min(1, (mouseX - padLeft) / chartW));
+        const idx = Math.round(ratio * (dataHistory.length - 1));
+
+        const d = dataHistory[idx];
+        const p = ptsContext[idx];
+        if (!d || !p) return;
+
+        scrubberGroup.style.display = '';
+        scrubberLine.setAttribute('x1', p.x.toFixed(1));
+        scrubberLine.setAttribute('x2', p.x.toFixed(1));
+        scrubberHalo.setAttribute('cx', p.x.toFixed(1));
+        scrubberHalo.setAttribute('cy', p.y.toFixed(1));
+        scrubberDot.setAttribute('cx', p.x.toFixed(1));
+        scrubberDot.setAttribute('cy', p.y.toFixed(1));
+
+        const rawTools = (d.tools && d.tools.length > 0) ? d.tools : [];
+        const toolDesc = rawTools.length > 0 ? rawTools.join(', ') : '对话交互';
+
+        let specialBadge = '';
+        if (d.is_compaction) {
+          specialBadge = `<div class="bg-purple-950/80 border border-purple-500/50 text-purple-300 px-1.5 py-0.5 rounded text-[10px] mb-1 font-bold">📉 上下文压缩释放: -${formatK(d.compaction_drop)} Tokens</div>`;
+        }
+
+        tooltip.innerHTML = `
+          ${specialBadge}
+          <div class="font-bold text-sky-400 flex items-center justify-between gap-3">
+            <span>Step ${d.step_index}</span>
+            <span class="text-gray-400 text-[10px] font-normal font-sans">${toolDesc}</span>
+          </div>
+          <div class="mt-1 space-y-0.5 text-[11px] font-mono">
+            <div class="flex justify-between gap-2 text-gray-300">
+              <span>上下文总量:</span>
+              <b class="text-white">${formatNum(d.context_tokens)}</b>
+            </div>
+            <div class="flex justify-between gap-2 text-gray-400">
+              <span>本步新增:</span>
+              <b class="${(d.delta_tokens || 0) > 2000 ? 'text-amber-400' : 'text-sky-300'}">+${formatNum(d.delta_tokens || 0)}</b>
+            </div>
+            <div class="flex justify-between gap-2 text-gray-400">
+              <span>缓存读取:</span>
+              <b class="text-teal-400">${formatNum(d.cache_read_tokens || 0)}</b>
+            </div>
+          </div>
+        `;
+        tooltip.classList.remove('hidden');
+
+        // 计算在容器内的绝对像素坐标
+        const dotScreenX = p.x;
+        const dotScreenY = p.y;
+
+        // 自适应左右防溢出
+        if (dotScreenX > containerBox.width * 0.62) {
+          tooltip.style.left = `${Math.max(8, dotScreenX - 180)}px`;
+        } else {
+          tooltip.style.left = `${dotScreenX + 12}px`;
+        }
+        tooltip.style.top = `${Math.max(6, Math.min(containerBox.height - 90, dotScreenY - 26))}px`;
+      }
+
+      if (overlay) {
+        overlay.addEventListener('mousemove', (e) => {
+          updateProbe(e.clientX);
+        });
+        overlay.addEventListener('mouseleave', () => {
+          scrubberGroup.style.display = 'none';
+          tooltip.classList.add('hidden');
+        });
+      }
+    }
+
+    function openRestartModal() {
+      const modal = document.getElementById('restartModal');
+      const card = document.getElementById('restartModalCard');
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        modal.classList.add('opacity-100');
+        card.classList.remove('scale-95');
+        card.classList.add('scale-100');
+      }, 10);
+    }
+
+    function closeRestartModal() {
+      const modal = document.getElementById('restartModal');
+      const card = document.getElementById('restartModalCard');
+      modal.classList.remove('opacity-100');
+      modal.classList.add('opacity-0');
+      card.classList.remove('scale-100');
+      card.classList.add('scale-95');
+      setTimeout(() => {
+        modal.classList.add('hidden');
+      }, 200);
+    }
+
+    async function executeRestartServer() {
+      const confirmBtn = document.getElementById('confirmRestartBtn');
+      const confirmText = confirmBtn.querySelector('span');
+      confirmBtn.disabled = true;
+      if (confirmText) confirmText.innerText = "正在完整重启服务内核...";
+
+      const btn = document.getElementById('restartBtn');
+      const btnText = document.getElementById('restartBtnText');
+      const icon = document.getElementById('restartIcon');
+
+      btn.disabled = true;
+      btn.classList.add('opacity-50');
+      icon.classList.add('animate-spin');
+      btnText.innerText = "重载中...";
+      stopPolling();
+
+      try {
+        await fetch('/api/restart', { method: 'POST' });
+      } catch (e) {
+        console.warn("Restart POST notice:", e);
+      }
+
+      closeRestartModal();
+
+      // 真·完整重启：带时间戳重载页面（重读最新 HTML/JS 并由已热重载的 Python 内核重新拉取全量数据）
+      setTimeout(() => {
+        const cleanUrl = window.location.origin + window.location.pathname + '?_t=' + Date.now();
+        window.location.replace(cleanUrl);
+      }, 300);
+    }
+
+    function setupEvents() {
+      // 重启服务弹窗交互
+      document.getElementById('restartBtn').addEventListener('click', openRestartModal);
+      document.getElementById('cancelRestartBtn').addEventListener('click', closeRestartModal);
+      document.getElementById('confirmRestartBtn').addEventListener('click', executeRestartServer);
+      document.getElementById('restartModal').addEventListener('click', (e) => {
+        if (e.target.id === 'restartModal') closeRestartModal();
+      });
+
+      // 视图切换
+      document.getElementById('viewToggleBtn').addEventListener('click', toggleViewMode);
+
+      // 会话选择切换与持久锁定 (兼容处理)
+      const convSel = document.getElementById('convSelect');
+      if (convSel) {
+        convSel.addEventListener('change', (e) => {
+          const val = e.target.value;
+          if (val) {
+            selectedCid = val;
+            localStorage.setItem('context_hud_locked_cid', selectedCid);
+          } else {
+            selectedCid = "";
+            localStorage.removeItem('context_hud_locked_cid');
+            trackedCid = "";
+          }
+          updateLockBadge();
+          renderConversationListUI();
+          fetchContextData();
+        });
+      }
+
+      // 左右滑动的可视化切换按钮交互 (Segmented Slider Switch)
+      const optAuto = document.getElementById('switchOptAuto');
+      const optLock = document.getElementById('switchOptLock');
+      const switchBox = document.getElementById('followLockSwitch');
+
+      function setFollowMode() {
+        if (!selectedCid) return;
+        selectedCid = "";
+        localStorage.removeItem('context_hud_locked_cid');
+        updateLockBadge();
+        renderConversationListUI();
+        fetchContextData();
+      }
+
+      function setLockMode() {
+        if (selectedCid) return;
+        if (trackedCid) {
+          selectedCid = trackedCid;
+          localStorage.setItem('context_hud_locked_cid', selectedCid);
+          updateLockBadge();
+          renderConversationListUI();
+          fetchContextData();
+        }
+      }
+
+      if (optAuto) {
+        optAuto.addEventListener('click', (e) => {
+          e.stopPropagation();
+          setFollowMode();
+        });
+      }
+
+      if (optLock) {
+        optLock.addEventListener('click', (e) => {
+          e.stopPropagation();
+          setLockMode();
+        });
+      }
+
+      if (switchBox) {
+        switchBox.addEventListener('click', () => {
+          if (selectedCid) {
+            setFollowMode();
+          } else {
+            setLockMode();
+          }
+        });
+      }
+
+      // 手动刷新
+      document.getElementById('manualRefreshBtn').addEventListener('click', () => {
+        fetchContextData();
+      });
+
+      // 自动刷新
+      const toggle = document.getElementById('autoRefreshToggle');
+      const badge = document.getElementById('liveStatusBadge');
+      toggle.addEventListener('change', (e) => {
+        if (e.target.checked) {
+          badge.classList.remove('hidden');
+          // startPolling();
+        } else {
+          badge.classList.add('hidden');
+          stopPolling();
+        }
+      });
+
+      // 监听走势图容器尺寸变化，自适应 1:1 动态防抖重绘 (始终正圆与无畸变排版)
+      let resizeDebounce = null;
+      if (window.ResizeObserver) {
+        const resizeObserver = new ResizeObserver(() => {
+          if (resizeDebounce) clearTimeout(resizeDebounce);
+          resizeDebounce = setTimeout(() => {
+            if (cachedStepHistory && cachedStepHistory.length >= 2) {
+              renderStepChart();
+            }
+          }, 80);
+        });
+        const chartCont = document.getElementById('chartContainer');
+        if (chartCont) resizeObserver.observe(chartCont);
+      }
+    }
+
+    function startPolling() {
+      stopPolling();
+      pollTimer = setInterval(fetchContextData, 2000);
+    }
+
+    function stopPolling() {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      applyViewMode();
+      setupEvents();
+
+      if (window.STATIC_OFFLINE_MODE && window.INITIAL_CONTEXT_DATA) {
+        // 零后台零端口：直接渲染预注入的静态数据
+        cachedConversations = window.INITIAL_CONTEXT_DATA.all_conversations || [];
+        renderDashboard(window.INITIAL_CONTEXT_DATA);
+        renderConversationListUI();
+
+        const badge = document.getElementById('liveStatusBadge');
+        badge.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-sky-500/10 text-sky-400 border border-sky-500/20";
+        badge.innerHTML = "<span>⚡ 零后台·零端口</span>";
+
+        const toggle = document.getElementById('autoRefreshToggle');
+        toggle.checked = false;
+        toggle.disabled = true;
+
+        const restartBtn = document.getElementById('restartBtn');
+        if (restartBtn) restartBtn.style.display = 'none';
+
+        const manualBtn = document.getElementById('manualRefreshBtn');
+        if (manualBtn) {
+          manualBtn.title = "离线静态快照模式";
+        }
+      } else {
+        // loadConversations();
+        // fetchContextData();
+        // startPolling();
+      }
+    });
+  </script>
+</body>
+</html>
